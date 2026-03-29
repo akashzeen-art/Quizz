@@ -1,0 +1,33 @@
+package com.nserve.quiz.service;
+
+import com.nserve.quiz.domain.User;
+import com.nserve.quiz.dto.UserProfileDto;
+import org.springframework.stereotype.Component;
+
+@Component
+public class UserMapper {
+
+  public UserProfileDto toDto(User u) {
+    String name = u.getDisplayName() != null ? u.getDisplayName() : "Player";
+    String plan = u.getPlanType() != null ? u.getPlanType() : "FREE";
+    String status = u.getPlanStatus() != null ? u.getPlanStatus() : "ACTIVE";
+    return new UserProfileDto(
+        u.getId(),
+        name,
+        u.getEmail(),
+        u.getPhone(),
+        u.getTotalScore(),
+        u.getWeeklyScore(),
+        u.getMonthlyScore(),
+        u.getPoints(),
+        u.getDayScore(),
+        u.getCategories(),
+        u.getPlayedDates(),
+        u.getLocation(),
+        u.getProfilePhotoUrl(),
+        u.getAvatarKey(),
+        plan,
+        status,
+        u.getProfileUpdatedAt());
+  }
+}

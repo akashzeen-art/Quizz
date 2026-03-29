@@ -1,0 +1,10 @@
+{
+  "name": "Skill-Based Quiz Contest App",
+  "short_name": "Quizzo",
+  "description": "Real-money inspired skill quiz contests",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0820",
+  "theme_color": "#581c87",
+  "orientation": "portrait"
+}

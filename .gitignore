@@ -1,0 +1,12 @@
+# Secrets — never commit
+backend/.env
+.env
+*.local.yml
+*.local.properties
+
+# Common
+.DS_Store
+node_modules/
+target/
+dist/
+backend/uploads/

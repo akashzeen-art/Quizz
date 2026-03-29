@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: skill-quiz-api
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/skill_quiz}
+  servlet:
+    multipart:
+      # Question media + PDF/DOC source uploads
+      max-file-size: 12MB
+      max-request-size: 14MB
+
+server:
+  port: 8080
+
+app:
+  cors:
+    origins: ${CORS_ORIGINS:http://localhost:5173}
+  upload:
+    dir: uploads
+  jwt:
+    # Min 32 chars. In production set JWT_SECRET (never commit real secrets).
+    secret: ${JWT_SECRET:nserve-quiz-admin-jwt-secret-key-min-32-chars!!}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  admin:
+    active-window-minutes: ${ADMIN_ACTIVE_MINUTES:15}
+    # Only used when no admin exists yet (first boot). Change in production via env.
+    seed-email: ${ADMIN_SEED_EMAIL:admin@gmail.com}
+    seed-password: ${ADMIN_SEED_PASSWORD:Admin@123}

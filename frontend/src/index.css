@@ -1,0 +1,577 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --color-brand-50: #faf5ff;
+  --color-brand-100: #f3e8ff;
+  --color-brand-200: #e9d5ff;
+  --color-brand-300: #d8b4fe;
+  --color-brand-400: #c084fc;
+  --color-brand-500: #a855f7;
+  --color-brand-600: #9333ea;
+  --color-brand-700: #7e22ce;
+  --color-brand-800: #6b21a8;
+  --color-brand-900: #581c87;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  @apply text-slate-900 antialiased;
+  -webkit-tap-highlight-color: transparent;
+  background: linear-gradient(
+    145deg,
+    #94a3b8 0%,
+    #cbd5e1 35%,
+    #e2e8f0 100%
+  );
+}
+
+#root {
+  @apply relative mx-auto min-h-[100dvh] w-full max-w-md overflow-x-hidden bg-gradient-to-b from-slate-50 via-white to-violet-50/30 shadow-[0_0_0_1px_rgba(15,23,42,0.06),0_25px_50px_-12px_rgba(15,23,42,0.25)];
+}
+
+/*
+ * Safe area: use alone only where padding-bottom is not set elsewhere.
+ * Do NOT combine with Tailwind pb-* — the later rule wins and drops the nav offset.
+ */
+.safe-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-pt {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+/**
+ * Use these instead of mixing `pt-*` with `.safe-pt` (only one padding-top wins).
+ * Notch/status bar inset plus a fixed gap.
+ */
+.safe-pt-header {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 1rem);
+}
+
+.safe-pt-sticky {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+}
+
+.safe-pt-onboarding {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 3.5rem);
+}
+
+/* Fixed AppBottomNav + raised Play FAB (-top-6) — one class clears the full stack + home indicator */
+.pb-bottom-nav {
+  padding-bottom: calc(8.25rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Quiz loading lobby — horizontal marquee */
+@keyframes lobby-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.lobby-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: lobby-marquee linear infinite;
+  will-change: transform;
+}
+
+/* Quiz play — feedback & option emphasis */
+@keyframes quiz-feedback-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-8px);
+  }
+  30% {
+    transform: translateX(8px);
+  }
+  45% {
+    transform: translateX(-5px);
+  }
+  60% {
+    transform: translateX(5px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+
+.quiz-feedback-shake {
+  animation: quiz-feedback-shake 0.65s ease-in-out both;
+}
+
+@keyframes quiz-celebrate-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 32px 8px rgba(167, 139, 250, 0.55);
+  }
+}
+
+.quiz-celebrate-glow {
+  animation: quiz-celebrate-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes quiz-sparkle-float {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.4);
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-36px) scale(1.1);
+  }
+}
+
+.quiz-sparkle {
+  animation: quiz-sparkle-float 1.4s ease-out forwards;
+}
+
+/* Correct banner — alternate glows */
+@keyframes quiz-fx-glow-soft {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 28px 6px rgba(196, 181, 253, 0.45);
+  }
+}
+
+.quiz-fx-glow-soft {
+  animation: quiz-fx-glow-soft 1.5s ease-in-out infinite;
+}
+
+@keyframes quiz-fx-glow-warm {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 30px 8px rgba(252, 211, 77, 0.4);
+  }
+}
+
+.quiz-fx-glow-warm {
+  animation: quiz-fx-glow-warm 1.35s ease-in-out infinite;
+}
+
+@keyframes quiz-fx-correct-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.quiz-fx-correct-float {
+  animation: quiz-fx-correct-float 2.4s ease-in-out infinite;
+}
+
+@keyframes quiz-fx-correct-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+.quiz-fx-correct-pulse {
+  animation: quiz-fx-correct-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes quiz-fx-correct-wave {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(3px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
+}
+
+.quiz-fx-correct-wave {
+  animation: quiz-fx-correct-wave 2.2s ease-in-out infinite;
+}
+
+@keyframes quiz-fx-correct-shimmer {
+  0% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.12);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+.quiz-fx-correct-shimmer {
+  animation: quiz-fx-correct-shimmer 1.6s ease-in-out infinite;
+}
+
+/* Correct particles */
+@keyframes quiz-particle-star-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.5) rotate(0deg);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px) scale(1.05) rotate(25deg);
+  }
+}
+
+.quiz-particle-star {
+  animation: quiz-particle-star-rise 1.5s ease-out forwards;
+}
+
+@keyframes quiz-particle-dot-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.3);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-32px) scale(1);
+  }
+}
+
+.quiz-particle-dot {
+  animation: quiz-particle-dot-rise 1.35s ease-out forwards;
+}
+
+@keyframes quiz-particle-ring-pulse {
+  0% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+.quiz-particle-ring {
+  animation: quiz-particle-ring-pulse 1.5s ease-out forwards;
+}
+
+@keyframes quiz-particle-meteor {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(-35deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-28px, -52px) rotate(-35deg);
+  }
+}
+
+.quiz-particle-meteor {
+  animation: quiz-particle-meteor 1.1s ease-out forwards;
+}
+
+@keyframes quiz-particle-bubble-float {
+  0% {
+    opacity: 0;
+    transform: translateY(28px) scale(0.6);
+  }
+  35% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-36px) scale(1.05);
+  }
+}
+
+.quiz-particle-bubble {
+  animation: quiz-particle-bubble-float 1.8s ease-out forwards;
+}
+
+@keyframes quiz-particle-diamond-spin {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) rotate(0deg);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-34px) rotate(180deg);
+  }
+}
+
+.quiz-particle-diamond {
+  animation: quiz-particle-diamond-spin 1.45s ease-out forwards;
+}
+
+/* Wrong banner — motion variants */
+@keyframes quiz-fx-wrong-wobble {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  20% {
+    transform: translateX(-6px) rotate(-0.8deg);
+  }
+  40% {
+    transform: translateX(6px) rotate(0.8deg);
+  }
+  60% {
+    transform: translateX(-4px) rotate(-0.4deg);
+  }
+  80% {
+    transform: translateX(3px) rotate(0.3deg);
+  }
+}
+
+.quiz-fx-wrong-wobble {
+  animation: quiz-fx-wrong-wobble 0.7s ease-in-out both;
+}
+
+@keyframes quiz-fx-wrong-rumble {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(-3px, 2px);
+  }
+  50% {
+    transform: translate(3px, -2px);
+  }
+  75% {
+    transform: translate(-2px, -1px);
+  }
+}
+
+.quiz-fx-wrong-rumble {
+  animation: quiz-fx-wrong-rumble 0.45s ease-in-out both;
+}
+
+@keyframes quiz-fx-wrong-jitter {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  10% {
+    transform: translate(-2px, 1px);
+  }
+  20% {
+    transform: translate(2px, -1px);
+  }
+  30% {
+    transform: translate(-1px, -2px);
+  }
+  40% {
+    transform: translate(1px, 2px);
+  }
+  50% {
+    transform: translate(-2px, 0);
+  }
+  60% {
+    transform: translate(2px, 1px);
+  }
+  70% {
+    transform: translate(0, -1px);
+  }
+  80% {
+    transform: translate(-1px, 2px);
+  }
+  90% {
+    transform: translate(1px, -2px);
+  }
+}
+
+.quiz-fx-wrong-jitter {
+  animation: quiz-fx-wrong-jitter 0.38s linear both;
+}
+
+@keyframes quiz-fx-wrong-sway {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  33% {
+    transform: rotate(-1.2deg);
+  }
+  66% {
+    transform: rotate(1.2deg);
+  }
+}
+
+.quiz-fx-wrong-sway {
+  animation: quiz-fx-wrong-sway 0.85s ease-in-out both;
+}
+
+@keyframes quiz-fx-wrong-double {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30% {
+    transform: translateX(-10px);
+  }
+  20%,
+  40% {
+    transform: translateX(10px);
+  }
+  50%,
+  70% {
+    transform: translateX(-8px);
+  }
+  60%,
+  80% {
+    transform: translateX(8px);
+  }
+}
+
+.quiz-fx-wrong-double {
+  animation: quiz-fx-wrong-double 0.75s ease-in-out both;
+}
+
+.quiz-wrong-vignette {
+  background: radial-gradient(
+    ellipse 90% 70% at 50% 35%,
+    transparent 0%,
+    rgba(0, 0, 0, 0.42) 100%
+  );
+}
+
+@keyframes quiz-wrong-scan-line {
+  0% {
+    transform: translateY(-120%);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(120%);
+    opacity: 0.15;
+  }
+}
+
+.quiz-wrong-scan {
+  overflow: hidden;
+}
+
+.quiz-wrong-scan::after {
+  content: '';
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: 0;
+  height: 28%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 255, 255, 0.07),
+    transparent
+  );
+  animation: quiz-wrong-scan-line 2.2s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes quiz-wrong-dim-keyframes {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.82;
+  }
+}
+
+.quiz-wrong-dim-pulse {
+  background: rgba(0, 0, 0, 0.28);
+  animation: quiz-wrong-dim-keyframes 1.75s ease-in-out infinite;
+}
+
+@keyframes quiz-wrong-pulse-edges-keyframes {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 0 rgba(0, 0, 0, 0.35);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 2px rgba(248, 250, 252, 0.12),
+      inset 0 0 24px 4px rgba(0, 0, 0, 0.45);
+  }
+}
+
+.quiz-wrong-pulse-edges {
+  animation: quiz-wrong-pulse-edges-keyframes 1.6s ease-in-out infinite;
+}
+
+@layer components {
+  /* Full-screen tinted background inside #root */
+  .app-screen {
+    @apply min-h-[100dvh] bg-gradient-to-b from-slate-50/95 via-violet-50/20 to-slate-100/90;
+  }
+
+  /* Elevated card — used on home, events, profile */
+  .app-card {
+    @apply rounded-3xl border border-slate-200/80 bg-white shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08),0_0_0_1px_rgba(255,255,255,0.8)_inset];
+  }
+
+  /* Primary CTA — violet / indigo */
+  .btn-app-primary {
+    @apply flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 via-violet-600 to-indigo-600 py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-violet-500/25 transition hover:brightness-105 active:scale-[0.99] disabled:opacity-45;
+  }
+
+  .btn-app-ghost {
+    @apply rounded-xl p-2 text-slate-600 transition hover:bg-white/80 hover:text-slate-900;
+  }
+
+  /* Inputs */
+  .input-app {
+    @apply w-full rounded-2xl border border-slate-200/90 bg-white px-4 py-3.5 text-slate-900 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/20;
+  }
+
+  .slider-neutral {
+    @apply h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-violet-600;
+  }
+  .slider-neutral::-webkit-slider-thumb {
+    @apply h-5 w-5 cursor-pointer appearance-none rounded-full border-2 border-white bg-violet-600 shadow-md ring-2 ring-violet-300/50;
+  }
+}
