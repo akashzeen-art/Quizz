@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { EVENTS, Joyride } from 'react-joyride'
+import { ACTIONS, EVENTS, Joyride } from 'react-joyride'
 import type { EventHandler } from 'react-joyride'
 import { homeTourSteps, START_TOUR_EVENT, TOUR_STORAGE_KEY } from '../tour/homeTourSteps'
 
@@ -10,6 +10,30 @@ type Props = {
 
 export function AppTour({ enabled = true }: Props) {
   const [run, setRun] = useState(false)
+
+  const scrollToStepTarget = useCallback((stepIndex: number) => {
+    const step = homeTourSteps[stepIndex]
+    if (!step) return
+    const target = step.target
+    if (target === 'body') return
+
+    let el: HTMLElement | null = null
+    if (typeof target === 'string') {
+      el = document.querySelector<HTMLElement>(target)
+    } else if (target instanceof HTMLElement) {
+      el = target
+    }
+    if (!el) return
+
+    // Keep tour movement feeling directional (up/down) when pressing Next/Back.
+    window.requestAnimationFrame(() => {
+      el?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'nearest',
+      })
+    })
+  }, [])
 
   const markDone = useCallback(() => {
     try {
@@ -41,9 +65,18 @@ export function AppTour({ enabled = true }: Props) {
     (data) => {
       if (data.type === EVENTS.TOUR_END) {
         markDone()
+        return
+      }
+
+      if (data.type === EVENTS.STEP_AFTER) {
+        if (data.action === ACTIONS.NEXT) {
+          scrollToStepTarget(data.index + 1)
+        } else if (data.action === ACTIONS.PREV) {
+          scrollToStepTarget(data.index - 1)
+        }
       }
     },
-    [markDone],
+    [markDone, scrollToStepTarget],
   )
 
   if (!enabled) return null

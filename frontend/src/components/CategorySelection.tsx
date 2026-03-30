@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
@@ -10,6 +10,7 @@ import {
 } from '../constants/categories'
 import * as api from '../api/client'
 import { useApp } from '../context/AppContext'
+import { markCategoryOnboardingSeen } from '../lib/categoryOnboarding'
 
 const BUBBLE_BG: Record<string, string> = {
   music: 'bg-violet-100',
@@ -50,6 +51,12 @@ export function CategorySelection() {
     selected.size >= MIN_CATEGORY_COUNT && selected.size <= MAX_CATEGORY_COUNT
 
   const list = useMemo(() => QUIZ_CATEGORIES, [])
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      markCategoryOnboardingSeen(currentUser.id)
+    }
+  }, [currentUser?.id])
 
   async function onSave() {
     if (!canSave) {

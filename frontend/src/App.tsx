@@ -10,7 +10,7 @@ import { QuizPlayScreen } from './components/QuizPlayScreen'
 import { EventsScreen } from './components/EventsScreen'
 import { LeaderboardScreen } from './components/LeaderboardScreen'
 import { ProfileScreen } from './components/ProfileScreen'
-import { isCategoryCountValid } from './constants/categories'
+import { shouldForceCategoryOnboarding } from './lib/categoryOnboarding'
 import { AdminApp } from './admin/AdminApp'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -47,10 +47,7 @@ function RequireCategories({ children }: { children: React.ReactNode }) {
       </div>
     )
   }
-  if (
-    !user?.categories ||
-    !isCategoryCountValid(user.categories.length)
-  ) {
+  if (shouldForceCategoryOnboarding(user)) {
     return <Navigate to="/categories" replace />
   }
   return <>{children}</>

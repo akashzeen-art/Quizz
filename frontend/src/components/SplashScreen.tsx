@@ -2,9 +2,9 @@ import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { APP_NAME } from '../constants/branding'
-import { isCategoryCountValid } from '../constants/categories'
 import { usePreferVideo } from '../hooks/usePreferVideo'
 import { useApp } from '../context/AppContext'
+import { shouldForceCategoryOnboarding } from '../lib/categoryOnboarding'
 import { GeometricOverlay } from './GeometricOverlay'
 import { VideoBackground } from './VideoBackground'
 
@@ -26,10 +26,7 @@ export function SplashScreen() {
     if (progress < 100) return
     const t = setTimeout(() => {
       if (!token) navigate('/auth', { replace: true })
-      else if (
-        !user?.categories ||
-        !isCategoryCountValid(user.categories.length)
-      )
+      else if (shouldForceCategoryOnboarding(user))
         navigate('/categories', { replace: true })
       else navigate('/home', { replace: true })
     }, 400)

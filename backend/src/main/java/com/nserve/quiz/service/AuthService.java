@@ -6,7 +6,6 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.nserve.quiz.domain.User;
 import com.nserve.quiz.dto.AuthResponse;
-import com.nserve.quiz.dto.OtpSentResponse;
 import com.nserve.quiz.dto.UserProfileDto;
 import com.nserve.quiz.repo.UserRepository;
 import java.io.IOException;
@@ -15,20 +14,15 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AuthService {
 
-  private static final String DEMO_OTP = "123456";
-
   private final UserRepository userRepository;
   private final UserMapper userMapper;
   private final String googleClientId;
-
-  private final ConcurrentHashMap<String, String> phoneOtps = new ConcurrentHashMap<>();
 
   public AuthService(
       UserRepository userRepository,
@@ -39,17 +33,11 @@ public class AuthService {
     this.googleClientId = googleClientId != null ? googleClientId.trim() : "";
   }
 
-  public OtpSentResponse loginPhone(String rawPhone) {
+  /** Sign in or register by phone (digits only, country code + national number, no OTP). */
+  public AuthResponse loginPhone(String rawPhone) {
     String phone = normalizePhone(rawPhone);
-    phoneOtps.put(phone, DEMO_OTP);
-    return new OtpSentResponse(true, "OTP sent (demo: use " + DEMO_OTP + ")");
-  }
-
-  public AuthResponse verifyOtp(String rawPhone, String otp) {
-    String phone = normalizePhone(rawPhone);
-    String expected = phoneOtps.getOrDefault(phone, DEMO_OTP);
-    if (!expected.equals(otp.trim())) {
-      throw new IllegalArgumentException("Invalid OTP");
+    if (phone.length() < 8 || phone.length() > 15) {
+      throw new IllegalArgumentException("Enter a valid phone number with country code");
     }
     User user =
         userRepository
@@ -75,6 +63,9 @@ public class AuthService {
 
   public AuthResponse loginEmail(String rawEmail) {
     String email = rawEmail.trim().toLowerCase();
+    if (email.isBlank() || !email.contains("@")) {
+      throw new IllegalArgumentException("Enter a valid email address");
+    }
     User user =
         userRepository
             .findByEmail(email)

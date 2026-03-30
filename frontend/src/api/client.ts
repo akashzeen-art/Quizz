@@ -144,18 +144,10 @@ export async function loginEmail(identifier: string) {
   return { token: data.token, user: normalizeUserProfile(data.user) }
 }
 
-export async function loginPhone(phone: string) {
-  const { data } = await api.post<{ otpSent: boolean; message?: string }>(
-    '/auth/login',
-    { identifier: phone, method: 'phone' },
-  )
-  return data
-}
-
-export async function verifyOtp(phone: string, otp: string) {
+export async function loginPhone(phoneDigits: string) {
   const { data } = await api.post<{ token: string; user: unknown }>(
-    '/auth/verify-otp',
-    { phone, otp },
+    '/auth/login',
+    { identifier: phoneDigits, method: 'phone' },
   )
   return { token: data.token, user: normalizeUserProfile(data.user) }
 }
