@@ -113,16 +113,26 @@ function GoogleSignInBlock({
 
   if (!hasClientId) {
     return (
-      <div className="app-card border-amber-200/80 bg-amber-50/90 px-4 py-3 text-center text-xs leading-relaxed text-amber-950">
-        Google sign-in needs{' '}
-        <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[0.7rem]">
-          VITE_GOOGLE_CLIENT_ID
-        </code>{' '}
-        (same Web Client ID as backend{' '}
-        <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[0.7rem]">
-          GOOGLE_CLIENT_ID
-        </code>
-        ).
+      <div className="app-card space-y-2 border-amber-200/80 bg-amber-50/90 px-4 py-3 text-left text-xs leading-relaxed text-amber-950">
+        <p className="font-semibold text-amber-900">Google sign-in is not configured in this build</p>
+        <p>
+          Add env var{' '}
+          <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[0.7rem]">
+            VITE_GOOGLE_CLIENT_ID
+          </code>{' '}
+          where the <strong>frontend</strong> is built (e.g. Vercel → Environment Variables), using the
+          same Web Client ID as{' '}
+          <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[0.7rem]">
+            GOOGLE_CLIENT_ID
+          </code>{' '}
+          on Render. Setting it only on the API does not update this app — Vite bakes it in at build
+          time.
+        </p>
+        <p className="text-amber-900/90">
+          After saving, trigger a <strong>new deploy</strong>. For local dev, put it in{' '}
+          <code className="font-mono text-[0.7rem]">frontend/.env.development</code> and restart{' '}
+          <code className="font-mono text-[0.7rem]">npm run dev</code>.
+        </p>
       </div>
     )
   }
