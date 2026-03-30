@@ -17,6 +17,127 @@ function maskPhone(raw: string) {
   return `+${d.slice(0, 2)} ${d.slice(2, 7)} ${d.slice(7, 11)} ${d.slice(11)}`.trim()
 }
 
+function GoogleSignInBlock({
+  busy,
+  setBusy,
+  loginWithToken,
+  navigate,
+}: {
+  busy: boolean
+  setBusy: (v: boolean) => void
+  loginWithToken: ReturnType<typeof useApp>['loginWithToken']
+  navigate: ReturnType<typeof useNavigate>
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const hasClientId = !!import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim()
+
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim()
+    if (!clientId) return
+    const googleClientId: string = clientId
+
+    let cancelled = false
+
+    const onCredential = async (credential: string) => {
+      setBusy(true)
+      try {
+        const res = await api.loginWithGoogle(credential)
+        loginWithToken(res.token, res.user)
+        navigate('/categories', { replace: true })
+      } catch (err) {
+        toast.error(api.getApiErrorMessage(err))
+      } finally {
+        setBusy(false)
+      }
+    }
+
+    function renderButton() {
+      if (cancelled) return
+      const el = wrapRef.current
+      const g = window.google?.accounts?.id
+      if (!el || !g) return
+      el.innerHTML = ''
+      g.initialize({
+        client_id: googleClientId,
+        callback: (resp: { credential: string }) => {
+          void onCredential(resp.credential)
+        },
+      })
+      const w = Math.min(400, Math.max(280, el.getBoundingClientRect().width || 360))
+      g.renderButton(el, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        text: 'continue_with',
+        width: w,
+        locale: 'en',
+      })
+    }
+
+    function ensureGsi(): Promise<void> {
+      if (window.google?.accounts?.id) return Promise.resolve()
+      return new Promise((resolve, reject) => {
+        const src = 'https://accounts.google.com/gsi/client'
+        const existing = document.querySelector<HTMLScriptElement>(`script[src="${src}"]`)
+        if (existing) {
+          if (window.google?.accounts?.id) {
+            resolve()
+            return
+          }
+          existing.addEventListener('load', () => resolve())
+          existing.addEventListener('error', () => reject(new Error('Google script')))
+          return
+        }
+        const script = document.createElement('script')
+        script.src = src
+        script.async = true
+        script.onload = () => resolve()
+        script.onerror = () => reject(new Error('Google script'))
+        document.body.appendChild(script)
+      })
+    }
+
+    void ensureGsi()
+      .then(() => {
+        if (cancelled) return
+        requestAnimationFrame(renderButton)
+      })
+      .catch(() => {
+        /* ignore */
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [setBusy, loginWithToken, navigate])
+
+  if (!hasClientId) {
+    return (
+      <div className="app-card border-amber-200/80 bg-amber-50/90 px-4 py-3 text-center text-xs leading-relaxed text-amber-950">
+        Google sign-in needs{' '}
+        <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[0.7rem]">
+          VITE_GOOGLE_CLIENT_ID
+        </code>{' '}
+        (same Web Client ID as backend{' '}
+        <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[0.7rem]">
+          GOOGLE_CLIENT_ID
+        </code>
+        ).
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`app-card flex min-h-[48px] w-full flex-col items-stretch justify-center border-slate-200/90 px-2 py-3 shadow-md ${
+        busy ? 'pointer-events-none opacity-60' : ''
+      }`}
+    >
+      <div ref={wrapRef} className="flex w-full justify-center [&_.gsi-material-button]:!w-full" />
+    </div>
+  )
+}
+
 export function AuthScreen() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -90,19 +211,6 @@ export function AuthScreen() {
     setBusy(true)
     try {
       const res = await api.verifyOtp(identifier.trim(), otp.trim())
-      loginWithToken(res.token, res.user)
-      navigate('/categories', { replace: true })
-    } catch (err) {
-      toast.error(api.getApiErrorMessage(err))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function onGoogle() {
-    setBusy(true)
-    try {
-      const res = await api.loginGoogleMock()
       loginWithToken(res.token, res.user)
       navigate('/categories', { replace: true })
     } catch (err) {
@@ -186,14 +294,12 @@ export function AuthScreen() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onGoogle}
-            disabled={busy}
-            className="app-card w-full border-slate-200/90 py-4 text-sm font-semibold text-slate-800 shadow-md transition hover:bg-slate-50/80 disabled:opacity-50"
-          >
-            Continue with Google
-          </button>
+          <GoogleSignInBlock
+            busy={busy}
+            setBusy={setBusy}
+            loginWithToken={loginWithToken}
+            navigate={navigate}
+          />
         </motion.div>
       ) : (
         <motion.div

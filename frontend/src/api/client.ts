@@ -160,10 +160,11 @@ export async function verifyOtp(phone: string, otp: string) {
   return { token: data.token, user: normalizeUserProfile(data.user) }
 }
 
-export async function loginGoogleMock() {
+/** Google Identity Services JWT → backend verifies and returns session token. */
+export async function loginWithGoogle(credential: string) {
   const { data } = await api.post<{ token: string; user: unknown }>(
     '/auth/google',
-    {},
+    { credential },
   )
   return { token: data.token, user: normalizeUserProfile(data.user) }
 }

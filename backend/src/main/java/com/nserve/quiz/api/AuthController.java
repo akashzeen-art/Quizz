@@ -1,9 +1,12 @@
 package com.nserve.quiz.api;
 
+import com.nserve.quiz.dto.GoogleAuthRequest;
 import com.nserve.quiz.dto.LoginRequest;
 import com.nserve.quiz.dto.OtpRequest;
 import com.nserve.quiz.service.AuthService;
 import jakarta.validation.Valid;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,7 +46,16 @@ public class AuthController {
   }
 
   @PostMapping("/google")
-  public ResponseEntity<?> google() {
-    return ResponseEntity.ok(authService.loginGoogle());
+  public ResponseEntity<?> google(@Valid @RequestBody GoogleAuthRequest req) {
+    try {
+      return ResponseEntity.ok(authService.loginWithGoogle(req.credential()));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    } catch (IllegalStateException e) {
+      return ResponseEntity.status(503).body(Map.of("error", e.getMessage()));
+    } catch (GeneralSecurityException | IOException e) {
+      return ResponseEntity.badRequest()
+          .body(Map.of("error", "Could not verify Google sign-in"));
+    }
   }
 }

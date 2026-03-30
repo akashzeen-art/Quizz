@@ -19,6 +19,10 @@ public class User {
   @Indexed(unique = true, sparse = true)
   private String phone;
 
+  /** Google account subject (`sub` claim); links OAuth logins to this user. */
+  @Indexed(unique = true, sparse = true)
+  private String googleSub;
+
   private String displayName;
 
   /** City/region label chosen by the user (optional). */
@@ -83,6 +87,14 @@ public class User {
 
   public void setPhone(String phone) {
     this.phone = phone;
+  }
+
+  public String getGoogleSub() {
+    return googleSub;
+  }
+
+  public void setGoogleSub(String googleSub) {
+    this.googleSub = googleSub;
   }
 
   public String getDisplayName() {

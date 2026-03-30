@@ -23,6 +23,9 @@ app:
     # Min 32 chars. In production set JWT_SECRET (never commit real secrets).
     secret: ${JWT_SECRET:nserve-quiz-admin-jwt-secret-key-min-32-chars!!}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  google:
+    # Same OAuth 2.0 Web Client ID as VITE_GOOGLE_CLIENT_ID on the frontend.
+    client-id: ${GOOGLE_CLIENT_ID:}
   admin:
     active-window-minutes: ${ADMIN_ACTIVE_MINUTES:15}
     # Only used when no admin exists yet (first boot). Change in production via env.
