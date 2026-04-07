@@ -44,3 +44,10 @@ export interface AdminQuizSummary {
   questionCount: number
   createdAt?: string
 }
+
+export interface CsvUploadResult {
+  questionsUploaded: number
+  quizSetsCreated: number
+  releasedSetNumber: number
+  errors: string[]
+}

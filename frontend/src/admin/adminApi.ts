@@ -4,6 +4,7 @@ import type {
   AdminQuizSummary,
   AdminStats,
   AdminUserPage,
+  CsvUploadResult,
 } from './types'
 
 const baseURL = import.meta.env.VITE_API_URL || '/api'
@@ -116,6 +117,21 @@ export async function uploadAdminDocument(file: File) {
     fd,
   )
   return data.url
+}
+
+export async function uploadCsv(
+  file: File,
+  category: string,
+  titlePrefix: string,
+  releaseSetNumber: number,
+): Promise<CsvUploadResult> {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('category', category)
+  fd.append('titlePrefix', titlePrefix)
+  fd.append('releaseSetNumber', String(releaseSetNumber))
+  const { data } = await adminApi.post<CsvUploadResult>('/admin/upload-csv', fd)
+  return data
 }
 
 export async function createAdminQuiz(body: unknown) {

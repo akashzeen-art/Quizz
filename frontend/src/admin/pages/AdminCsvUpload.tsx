@@ -325,7 +325,7 @@ export default function AdminCsvUpload() {
                 </p>
               </div>
               <ul className="space-y-1 text-xs text-rose-400/90">
-                {result.errors.map((e, i) => (
+                {result.errors.map((e: string, i: number) => (
                   <li key={i} className="font-mono">{e}</li>
                 ))}
               </ul>
