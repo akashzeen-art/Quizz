@@ -235,13 +235,7 @@ public class QuizService {
   }
 
   private static int computePoints(boolean correct, Long timeMs) {
-    if (!correct) {
-      return 0;
-    }
-    long t = timeMs == null ? QUESTION_MS : Math.min(QUESTION_MS, Math.max(0, timeMs));
-    int base = 10;
-    int bonus = (int) Math.round((QUESTION_MS - t) / (double) QUESTION_MS * 5.0);
-    return base + bonus;
+    return correct ? 3 : 0;
   }
 
   private QuizDto toDto(Quiz q) {

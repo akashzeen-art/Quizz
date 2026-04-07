@@ -44,13 +44,6 @@ export const homeTourSteps: Step[] = [
     placement: 'bottom',
   },
   {
-    target: '[data-tour="tour-search"]',
-    title: 'Search & filters',
-    content:
-      'Search and filters will help you find quizzes faster as we add more content.',
-    placement: 'bottom',
-  },
-  {
     target: '[data-tour="tour-categories"]',
     title: 'Your interests',
     content:

@@ -1,0 +1,12 @@
+Question Type,Question Text,Correct Answer,Asset,Option A,Option B,Option C,Option D
+BINARY,Is it daytime?,yes,http://images.cocodataset.org/val2014/COCO_val2014_000000305799.jpg,no,yes,NULL,NULL
+TEXT MCQ,Which sense organ is used for hearing?,Ear,NULL,Eye,Nose,Ear,Skin
+TEXT MCQ,What is the freezing point of water?,0°C,NULL,0°C,10°C,20°C,-10°C
+BINARY,Is the cat ready to pounce?,no,http://images.cocodataset.org/val2014/COCO_val2014_000000042576.jpg,no,yes,NULL,NULL
+BINARY,Is it summer?,no,http://images.cocodataset.org/val2014/COCO_val2014_000000043202.jpg,no,yes,NULL,NULL
+TEXT MCQ,Which is a tool?,Hammer,NULL,Hammer,Apple,Chair,Bread
+TEXT MCQ,Which country uses Yen?,Japan,NULL,China,Japan,Korea,Thailand
+BINARY,Is this a cat?,no,http://images.cocodataset.org/val2014/COCO_val2014_000000042296.jpg,no,yes,NULL,NULL
+IMAGE MCQ,What season is it?,winter,http://images.cocodataset.org/val2014/COCO_val2014_000000042406.jpg,summer,spring,winter,fall
+TEXT MCQ,What is the capital of France?,Paris,NULL,Berlin,Madrid,Paris,Rome
+TEXT MCQ,What is 2 + 2?,4,NULL,3,4,5,6

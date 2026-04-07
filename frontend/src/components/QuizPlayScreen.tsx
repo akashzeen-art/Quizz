@@ -180,6 +180,9 @@ export function QuizPlayScreen() {
   const [timeLeft, setTimeLeft] = useState(QUESTION_SEC)
   const [frozen, setFrozen] = useState(false)
   const [result, setResult] = useState<ResultState | null>(null)
+  const [showEndCard, setShowEndCard] = useState(false)
+  const [sessionScore, setSessionScore] = useState(0)
+  const [correctCount, setCorrectCount] = useState(0)
   const [sliderVal, setSliderVal] = useState(50)
   const sliderRef = useRef(sliderVal)
   const questionStartedAt = useRef(Date.now())
@@ -253,14 +256,17 @@ export function QuizPlayScreen() {
           timeMs,
         })
         const bundle = randomFeedbackBundle(res.correct)
+        const pts = res.correct ? 3 : 0
         setResult({
           correct: bundle.correct,
           msg: bundle.message,
           effectId: bundle.effectId,
-          points: res.pointsEarned,
+          points: pts,
           correctAnswerIndex: res.correctAnswerIndex,
           selectedIndex: timedOut ? undefined : answerIndex,
         })
+        setSessionScore((s) => s + pts)
+        if (res.correct) setCorrectCount((c) => c + 1)
         await refreshProfile()
       } catch {
         toast.error('Submit failed')
@@ -301,8 +307,7 @@ export function QuizPlayScreen() {
 
   function onNext() {
     if (index + 1 >= questions.length) {
-      toast.success('Quiz complete!')
-      navigate('/home', { replace: true })
+      setShowEndCard(true)
       return
     }
     setResult(null)
@@ -338,6 +343,151 @@ export function QuizPlayScreen() {
           >
             Back home
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (showEndCard) {
+    const accuracy = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0
+    const grade =
+      accuracy === 100 ? { label: 'Perfect! 🏆', color: 'text-amber-500', bg: 'from-amber-400 to-orange-500', emoji: '🏆' }
+      : accuracy >= 70 ? { label: 'Great job! 🥇', color: 'text-emerald-600', bg: 'from-emerald-400 to-teal-500', emoji: '🥇' }
+      : accuracy >= 40 ? { label: 'Good try! 🎯', color: 'text-violet-600', bg: 'from-violet-400 to-indigo-500', emoji: '🎯' }
+      : { label: 'Keep going! 💪', color: 'text-slate-600', bg: 'from-slate-400 to-slate-600', emoji: '💪' }
+
+    return (
+      <div className="app-screen relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-5 pb-10 safe-pt-header">
+        {/* bg blobs */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-violet-500/25 blur-3xl" />
+          <div className="absolute -bottom-24 -right-24 h-80 w-80 rounded-full bg-fuchsia-500/25 blur-3xl" />
+          <div className="absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-400/15 blur-2xl" />
+        </div>
+
+        {/* floating emoji particles */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          {[...Array(16)].map((_, i) => (
+            <motion.span
+              key={i}
+              className="absolute text-xl"
+              initial={{ opacity: 0, y: 60, scale: 0 }}
+              animate={{ opacity: [0, 1, 0], y: [60, -80, -160], scale: [0, 1, 0.6] }}
+              transition={{ delay: i * 0.15, duration: 3, repeat: Infinity, repeatDelay: i * 0.4 }}
+              style={{ left: `${5 + (i * 21) % 88}%`, bottom: '10%' }}
+            >
+              {['✦', '✧', '⭐', '💫', '✨', '🌟', '⚡', '🎉'][i % 8]}
+            </motion.span>
+          ))}
+        </div>
+
+        <div className="relative z-10 w-full max-w-sm">
+          {/* trophy */}
+          <motion.div
+            className="mx-auto mb-5 flex h-28 w-28 items-center justify-center"
+            initial={{ scale: 0, rotate: -30 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 12, delay: 0.1 }}
+          >
+            <motion.div
+              className={`flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br ${grade.bg} shadow-2xl`}
+              animate={{ scale: [1, 1.06, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <span className="text-5xl">{grade.emoji}</span>
+            </motion.div>
+          </motion.div>
+
+          <motion.h2
+            className={`mb-1 text-center text-3xl font-extrabold tracking-tight ${grade.color}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            {grade.label}
+          </motion.h2>
+          <motion.p
+            className="mb-6 text-center text-sm text-slate-500"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+          >
+            Quiz complete — here's how you did
+          </motion.p>
+
+          {/* 3 stat cards */}
+          <motion.div
+            className="mb-5 grid grid-cols-3 gap-3"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45, type: 'spring', stiffness: 180 }}
+          >
+            {[
+              { value: sessionScore, label: 'Score', border: 'border-violet-200', text: 'text-violet-700' },
+              { value: `${correctCount}/${questions.length}`, label: 'Correct', border: 'border-lime-200', text: 'text-lime-700' },
+              { value: `${accuracy}%`, label: 'Accuracy', border: 'border-amber-200', text: 'text-amber-600' },
+            ].map((s) => (
+              <div key={s.label} className={`flex flex-col items-center rounded-2xl border ${s.border} bg-white/90 py-4 shadow-md`}>
+                <span className={`text-xl font-black tabular-nums ${s.text}`}>{s.value}</span>
+                <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{s.label}</span>
+              </div>
+            ))}
+          </motion.div>
+
+          {/* question bar */}
+          <motion.div
+            className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.55 }}
+          >
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Question breakdown</p>
+            <div className="flex gap-1">
+              {questions.map((_, qi) => (
+                <motion.div
+                  key={qi}
+                  className={`h-2.5 flex-1 rounded-full ${qi < correctCount ? 'bg-emerald-500' : 'bg-rose-400'}`}
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ delay: 0.6 + qi * 0.05, type: 'spring', stiffness: 200 }}
+                  style={{ transformOrigin: 'left' }}
+                />
+              ))}
+            </div>
+            <div className="mt-2 flex justify-between text-[10px] text-slate-400">
+              <span className="text-emerald-600 font-semibold">{correctCount} correct</span>
+              <span className="text-rose-500 font-semibold">{questions.length - correctCount} wrong</span>
+            </div>
+          </motion.div>
+
+          {/* CTAs */}
+          <motion.div
+            className="space-y-3"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+          >
+            <button
+              type="button"
+              className="btn-app-primary py-4 text-base"
+              onClick={() =>
+                navigate('/leaderboard', {
+                  replace: true,
+                  state: { fromQuiz: true, score: sessionScore, correct: correctCount, total: questions.length },
+                })
+              }
+            >
+              <Sparkles className="h-5 w-5" />
+              See Leaderboard
+            </button>
+            <button
+              type="button"
+              className="w-full rounded-2xl border border-slate-200 bg-white/80 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              onClick={() => navigate('/home', { replace: true })}
+            >
+              Back to home
+            </button>
+          </motion.div>
         </div>
       </div>
     )
@@ -566,29 +716,17 @@ export function QuizPlayScreen() {
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                {[0, 1].map((i) => (
-                  <OptionTile
-                    key={i}
-                    label={q.options[i] ?? '—'}
-                    idleClass={NEUTRAL_TILES[i % NEUTRAL_TILES.length]}
-                    visual={optionVisualState(i, result, correctIdx ?? null)}
-                    disabled={!!result}
-                    onClick={() => onPick(i)}
-                  />
-                ))}
-              </div>
-              <div className="flex justify-center">
-                <div className="w-full max-w-[49%]">
-                  <OptionTile
-                    label={q.options[2] ?? '—'}
-                    idleClass={NEUTRAL_TILES[2]}
-                    visual={optionVisualState(2, result, correctIdx ?? null)}
-                    disabled={!!result}
-                    onClick={() => onPick(2)}
-                  />
-                </div>
-              </div>
+              {[0, 1, 2].map((i) => (
+                <OptionTile
+                  key={i}
+                  label={q.options[i] ?? '—'}
+                  idleClass={NEUTRAL_TILES[i % NEUTRAL_TILES.length]}
+                  visual={optionVisualState(i, result, correctIdx ?? null)}
+                  disabled={!!result}
+                  burgerStyle
+                  onClick={() => onPick(i)}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -622,6 +760,7 @@ function OptionTile({
   visual,
   disabled,
   large,
+  burgerStyle,
   onClick,
 }: {
   label: string
@@ -629,15 +768,16 @@ function OptionTile({
   visual: OptionVisualState
   disabled: boolean
   large?: boolean
+  burgerStyle?: boolean
   onClick: () => void
 }) {
   const reveal = visual !== 'idle'
 
   const stateClass =
     visual === 'correct'
-      ? 'border-violet-500 bg-violet-50 text-violet-950 ring-2 ring-violet-400 shadow-lg shadow-violet-500/20'
+      ? 'border-green-700 bg-green-700 text-white ring-2 ring-green-600 shadow-lg shadow-green-700/35'
       : visual === 'wrongPick'
-        ? 'border-amber-400 bg-amber-50 text-amber-950 ring-2 ring-amber-300/90 shadow-md'
+        ? 'border-red-600 bg-red-600 text-white ring-2 ring-red-500 shadow-md shadow-red-500/30'
         : visual === 'dim'
           ? 'border-slate-200/60 bg-slate-50 text-slate-400 opacity-60'
           : idleClass
@@ -656,17 +796,21 @@ function OptionTile({
       }
       whileTap={{ scale: disabled ? 1 : 0.98 }}
       onClick={onClick}
-      className={`relative rounded-2xl border px-3 text-center text-sm font-bold leading-snug shadow-sm transition ${stateClass} ${
-        large ? 'min-h-[120px] py-6 text-base' : 'min-h-[88px] py-4'
+      className={`relative w-full rounded-2xl border px-3 text-sm font-bold leading-snug shadow-sm transition ${stateClass} ${
+        burgerStyle
+          ? 'min-h-[96px] px-5 py-4 text-center text-base'
+          : large
+            ? 'min-h-[120px] py-6 text-base text-center'
+            : 'min-h-[88px] py-4 text-center'
       } disabled:cursor-default`}
     >
       {visual === 'correct' && (
-        <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-violet-600 text-white shadow-md ring-2 ring-white">
+        <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-green-900 text-white shadow-md ring-2 ring-white">
           <Check className="h-4 w-4" strokeWidth={3} />
         </span>
       )}
       {visual === 'wrongPick' && (
-        <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-amber-600 text-white shadow-md ring-2 ring-white">
+        <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-red-700 text-white shadow-md ring-2 ring-white">
           <X className="h-4 w-4" strokeWidth={3} />
         </span>
       )}
