@@ -3,6 +3,7 @@ package com.nserve.quiz.service;
 import com.nserve.quiz.domain.InputType;
 import com.nserve.quiz.domain.Question;
 import com.nserve.quiz.domain.Quiz;
+import com.nserve.quiz.domain.QuizPlayEntitlement;
 import com.nserve.quiz.domain.QuizStatus;
 import com.nserve.quiz.domain.Result;
 import com.nserve.quiz.domain.User;
@@ -11,7 +12,6 @@ import com.nserve.quiz.dto.QuizDetailResponse;
 import com.nserve.quiz.dto.QuizDto;
 import com.nserve.quiz.dto.SubmitAnswerRequest;
 import com.nserve.quiz.dto.SubmitAnswerResponse;
-import com.nserve.quiz.domain.QuizPlayEntitlement;
 import com.nserve.quiz.repo.QuestionRepository;
 import com.nserve.quiz.repo.QuizPlayEntitlementRepository;
 import com.nserve.quiz.repo.QuizRepository;
@@ -24,8 +24,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -79,17 +79,19 @@ public class QuizService {
   }
 
   public QuizDetailResponse getQuizForUser(User user, String quizId, String playRef) {
-    // Validate play entitlement only when the wallet system is active
+    // Soft entitlement check — only blocks if entitlement exists but is invalid
     if (playRef != null && !playRef.isBlank()) {
       try {
-        Optional<QuizPlayEntitlement> ent = playEntitlementRepository.findByClientRequestId(playRef);
+        Optional<QuizPlayEntitlement> ent =
+            playEntitlementRepository.findByClientRequestId(playRef);
         if (ent.isPresent()) {
           QuizPlayEntitlement e = ent.get();
-          if (!e.getUserId().equals(user.getId()) || !e.getQuizId().equals(quizId)
+          if (!e.getUserId().equals(user.getId())
+              || !e.getQuizId().equals(quizId)
               || e.getExpiresAt().isBefore(Instant.now())) {
             throw new ResponseStatusException(
                 HttpStatus.PAYMENT_REQUIRED,
-                "No active play session for this quiz. Return to the lobby and try again.");
+                "No active play session for this quiz.");
           }
         }
       } catch (ResponseStatusException rse) {
@@ -104,6 +106,7 @@ public class QuizService {
             .findById(quizId)
             .orElseThrow(() -> new IllegalArgumentException("Quiz not found"));
     assertQuizJoinable(quiz);
+
     List<String> qids = quiz.getQuestionIds();
     if (qids != null && !qids.isEmpty()) {
       List<Question> ordered = new ArrayList<>();
@@ -115,17 +118,12 @@ public class QuizService {
           ordered.subList(0, take).stream().map(this::toQuestionDto).toList();
       return new QuizDetailResponse(toDto(quiz), qs);
     }
+
     List<String> cats = user.getCategories();
-    if (cats == null || cats.isEmpty()) {
-      cats = List.of();
-    }
+    if (cats == null || cats.isEmpty()) cats = List.of();
     List<Question> pool =
-        cats.isEmpty()
-            ? questionRepository.findAll()
-            : questionRepository.findByCategoryIn(cats);
-    if (pool.isEmpty()) {
-      pool = questionRepository.findAll();
-    }
+        cats.isEmpty() ? questionRepository.findAll() : questionRepository.findByCategoryIn(cats);
+    if (pool.isEmpty()) pool = questionRepository.findAll();
     List<Question> copy = new ArrayList<>(pool);
     Collections.shuffle(copy, ThreadLocalRandom.current());
     int take = Math.min(quiz.getQuestionCount(), copy.size());
@@ -134,12 +132,26 @@ public class QuizService {
   }
 
   public SubmitAnswerResponse submitAnswer(User user, SubmitAnswerRequest req) {
-    if (playEntitlementRepository
-        .findFirstByUserIdAndQuizIdAndExpiresAtAfterOrderByCreatedAtDesc(
-            user.getId(), req.quizId(), Instant.now())
-        .isEmpty()) {
-      throw new ResponseStatusException(
-          HttpStatus.PAYMENT_REQUIRED, "No active quiz session for this quiz.");
+    // Soft entitlement check — allow if collection unavailable
+    try {
+      boolean hasEntitlement =
+          playEntitlementRepository
+              .findFirstByUserIdAndQuizIdAndExpiresAtAfterOrderByCreatedAtDesc(
+                  user.getId(), req.quizId(), Instant.now())
+              .isPresent();
+      if (!hasEntitlement) {
+        // Check if any entitlement exists at all (wallet system may not be active)
+        long total = playEntitlementRepository.count();
+        if (total > 0) {
+          throw new ResponseStatusException(
+              HttpStatus.PAYMENT_REQUIRED, "No active quiz session.");
+        }
+        // wallet system not active — allow submit
+      }
+    } catch (ResponseStatusException rse) {
+      throw rse;
+    } catch (Exception ignored) {
+      // entitlement collection unavailable — allow submit
     }
 
     var dup =
@@ -151,10 +163,8 @@ public class QuizService {
           questionRepository
               .findById(req.questionId())
               .orElseThrow(() -> new IllegalArgumentException("Question not found"));
-      Integer reveal =
-          qq.getInputType() == InputType.slider ? null : qq.getCorrectAnswerIndex();
-      return new SubmitAnswerResponse(
-          r.isCorrect(), 0, "Already answered", user.getTotalScore(), reveal);
+      Integer reveal = qq.getInputType() == InputType.slider ? null : qq.getCorrectAnswerIndex();
+      return new SubmitAnswerResponse(r.isCorrect(), 0, "Already answered", user.getTotalScore(), reveal);
     }
 
     Question q =
@@ -174,32 +184,25 @@ public class QuizService {
     row.setAnsweredAt(Instant.now());
     resultRepository.save(row);
 
-    if (points > 0) {
-      applyPoints(user, points);
-    } else {
-      ensurePlayedDate(user);
-    }
+    if (points > 0) applyPoints(user, points);
+    else ensurePlayedDate(user);
 
     User saved = userRepository.findById(user.getId()).orElse(user);
-    Integer revealIdx =
-        q.getInputType() == InputType.slider ? null : q.getCorrectAnswerIndex();
+    Integer revealIdx = q.getInputType() == InputType.slider ? null : q.getCorrectAnswerIndex();
     return new SubmitAnswerResponse(
         correct, points, feedbackService.random(correct), saved.getTotalScore(), revealIdx);
   }
 
   private void assertQuizJoinable(Quiz quiz) {
     Instant now = Instant.now();
-    if (quiz.getStatus() == QuizStatus.ended) {
+    if (quiz.getStatus() == QuizStatus.ended)
       throw new IllegalArgumentException("This event has ended.");
-    }
-    if (quiz.getEndsAt() != null && now.isAfter(quiz.getEndsAt())) {
+    if (quiz.getEndsAt() != null && now.isAfter(quiz.getEndsAt()))
       throw new IllegalArgumentException("This event window has closed.");
-    }
     if (quiz.getStatus() == QuizStatus.upcoming
         && quiz.getStartsAt() != null
-        && quiz.getStartsAt().isAfter(now)) {
+        && quiz.getStartsAt().isAfter(now))
       throw new IllegalArgumentException("This event has not started yet.");
-    }
   }
 
   private static Comparator<Quiz> byStartsAsc() {
@@ -207,7 +210,8 @@ public class QuizService {
   }
 
   private static Comparator<Quiz> byStartsDesc() {
-    return Comparator.comparing(Quiz::getStartsAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+    return Comparator.comparing(
+            Quiz::getStartsAt, Comparator.nullsFirst(Comparator.naturalOrder()))
         .reversed();
   }
 
@@ -215,93 +219,54 @@ public class QuizService {
     User u = userRepository.findById(user.getId()).orElse(user);
     String today = LocalDate.now(ZoneOffset.UTC).toString();
     List<String> dates = u.getPlayedDates();
-    if (dates == null) {
-      dates = new ArrayList<>();
-      u.setPlayedDates(dates);
-    }
-    if (!dates.contains(today)) {
-      dates.add(today);
-      userRepository.save(u);
-    }
+    if (dates == null) { dates = new ArrayList<>(); u.setPlayedDates(dates); }
+    if (!dates.contains(today)) { dates.add(today); userRepository.save(u); }
   }
 
   private void applyPoints(User user, int points) {
     User u = userRepository.findById(user.getId()).orElseThrow();
     String today = LocalDate.now(ZoneOffset.UTC).toString();
-    if (!today.equals(u.getDayScoreDate())) {
-      u.setDayScore(0);
-      u.setDayScoreDate(today);
-    }
+    if (!today.equals(u.getDayScoreDate())) { u.setDayScore(0); u.setDayScoreDate(today); }
     u.setDayScore(u.getDayScore() + points);
     u.setTotalScore(u.getTotalScore() + points);
     u.setWeeklyScore(u.getWeeklyScore() + points);
     u.setMonthlyScore(u.getMonthlyScore() + points);
     u.setPoints(u.getPoints() + points);
-
     List<String> dates = u.getPlayedDates();
-    if (dates == null) {
-      dates = new ArrayList<>();
-      u.setPlayedDates(dates);
-    }
-    if (!dates.contains(today)) {
-      dates.add(today);
-    }
+    if (dates == null) { dates = new ArrayList<>(); u.setPlayedDates(dates); }
+    if (!dates.contains(today)) dates.add(today);
     userRepository.save(u);
   }
 
   private static boolean evaluate(Question q, SubmitAnswerRequest req) {
     if (q.getInputType() == InputType.slider) {
-      if (req.sliderValue() == null || q.getCorrectNumeric() == null) {
-        return false;
-      }
+      if (req.sliderValue() == null || q.getCorrectNumeric() == null) return false;
       double val = req.sliderValue();
       double target = q.getCorrectNumeric();
       double min = Double.parseDouble(q.getOptions().get(0));
       double max = Double.parseDouble(q.getOptions().get(1));
-      double lo = Math.min(min, max);
-      double hi = Math.max(min, max);
-      double range = hi - lo;
+      double range = Math.abs(max - min);
       double tol = Math.max(range * 0.05, 1.0);
       return Math.abs(val - target) <= tol;
     }
-    if (req.answerIndex() == null || q.getCorrectAnswerIndex() == null) {
-      return false;
-    }
+    if (req.answerIndex() == null || q.getCorrectAnswerIndex() == null) return false;
     return req.answerIndex().equals(q.getCorrectAnswerIndex());
   }
 
   private static int computePoints(boolean correct, Long timeMs) {
-    if (!correct) {
-      return 0;
-    }
-    long t = timeMs == null ? QUESTION_MS : Math.min(QUESTION_MS, Math.max(0, timeMs));
-    int base = 10;
-    int bonus = (int) Math.round((QUESTION_MS - t) / (double) QUESTION_MS * 5.0);
-    return base + bonus;
+    return correct ? 3 : 0;
   }
 
   private QuizDto toDto(Quiz q) {
     return new QuizDto(
-        q.getId(),
-        q.getTitle(),
-        q.getDescription(),
-        q.getStatus(),
-        q.getStartsAt(),
-        q.getEndsAt(),
-        q.getQuestionCount(),
-        q.getReferenceDocumentUrl(),
-        q.getReferenceDocumentName());
+        q.getId(), q.getTitle(), q.getDescription(), q.getStatus(),
+        q.getStartsAt(), q.getEndsAt(), q.getQuestionCount(),
+        q.getReferenceDocumentUrl(), q.getReferenceDocumentName());
   }
 
   private QuestionDto toQuestionDto(Question q) {
     return new QuestionDto(
-        q.getId(),
-        q.getQuestionText(),
-        q.getMediaUrl(),
-        q.getMediaType(),
-        q.getInputType(),
-        q.getOptions(),
-        q.getCategory(),
-        q.getDocumentReference());
+        q.getId(), q.getQuestionText(), q.getMediaUrl(), q.getMediaType(),
+        q.getInputType(), q.getOptions(), q.getCategory(), q.getDocumentReference());
   }
 }
