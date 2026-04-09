@@ -21,6 +21,8 @@ public class UserMapper {
         u.getMonthlyScore(),
         u.getPoints(),
         u.getDayScore(),
+        u.getCredits(),
+        u.getTotalSpent(),
         u.getCategories(),
         u.getPlayedDates(),
         u.getLocation(),

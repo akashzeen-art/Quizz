@@ -5,11 +5,16 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Coins,
+  Copy,
+  Gift,
   HelpCircle,
   History,
   LifeBuoy,
+  Loader2,
   MapPin,
   Menu,
+  Share2,
   SlidersHorizontal,
   Sparkles,
   User,
@@ -60,10 +65,14 @@ function monthGrid(year: number, month: number) {
 
 export function HomeScreen() {
   const navigate = useNavigate()
-  const { user, logout, setUser } = useApp()
+  const { user, logout, setUser, refreshProfile } = useApp()
   const [menuOpen, setMenuOpen] = useState(false)
   const [locationOpen, setLocationOpen] = useState(false)
   const [categoryFilterOpen, setCategoryFilterOpen] = useState(false)
+  const [addCreditsOpen, setAddCreditsOpen] = useState(false)
+  const [addCreditsRupees, setAddCreditsRupees] = useState('50')
+  const [addCreditsBusy, setAddCreditsBusy] = useState(false)
+  const [inviteBusy, setInviteBusy] = useState(false)
   const [quizzes, setQuizzes] = useState<QuizDto[] | null>(null)
   const [leaderboard, setLeaderboard] = useState<
     Awaited<ReturnType<typeof api.fetchLeaderboard>> | null
@@ -164,6 +173,66 @@ export function HomeScreen() {
     return () => window.cancelAnimationFrame(raf)
   }, [categoryPills])
 
+  const invitePrimaryLabel =
+    typeof navigator !== 'undefined' &&
+    typeof navigator.share === 'function'
+      ? 'Share invite'
+      : 'Get invite link'
+
+  /** Personal signup link so invites can be attributed (add backend handling for `ref` later). */
+  const referralUrl = useMemo(() => {
+    if (!user?.id) return ''
+    try {
+      const u = new URL(`${window.location.origin}/auth`)
+      u.searchParams.set('ref', user.id)
+      return u.toString()
+    } catch {
+      return ''
+    }
+  }, [user?.id])
+
+  async function shareInviteLink() {
+    if (!referralUrl) {
+      toast.error('Sign in to get your invite link')
+      return
+    }
+    setInviteBusy(true)
+    try {
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Join me on the quiz',
+            text: 'Skill-based quizzes and leaderboards — sign up with my link.',
+            url: referralUrl,
+          })
+          toast.success('Thanks for sharing!')
+          return
+        } catch (e) {
+          if ((e as Error).name === 'AbortError') return
+        }
+      }
+      await navigator.clipboard.writeText(referralUrl)
+      toast.success('Invite link copied to clipboard')
+    } catch {
+      toast.error('Could not share or copy the link')
+    } finally {
+      setInviteBusy(false)
+    }
+  }
+
+  async function copyInviteLinkOnly() {
+    if (!referralUrl) {
+      toast.error('Sign in to get your invite link')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(referralUrl)
+      toast.success('Link copied')
+    } catch {
+      toast.error('Could not copy — try selecting the link manually')
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -263,32 +332,46 @@ export function HomeScreen() {
           </button>
         </div>
 
-        <div data-tour="tour-categories" className="relative z-10 mt-5 flex items-center gap-2">
+        <div className="relative z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/10 px-3 py-2.5 ring-1 ring-white/15 backdrop-blur-sm">
+          <div className="flex min-w-0 items-center gap-2 text-white">
+            <Coins className="h-5 w-5 shrink-0 text-amber-200" aria-hidden />
+            <span className="truncate text-sm font-semibold tabular-nums">
+              {user?.credits ?? 0} credits
+            </span>
+          </div>
           <button
             type="button"
-            className="shrink-0 flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-violet-700 shadow-md hover:bg-violet-50 active:scale-95 transition"
-            aria-label="Filter categories"
-            onClick={() => setCategoryFilterOpen(true)}
+            className="shrink-0 rounded-full bg-white/20 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-white ring-1 ring-white/25 transition hover:bg-white/30"
+            onClick={() => setAddCreditsOpen(true)}
           >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            Filter
+            Add credits
           </button>
-          <div
-            ref={categoryTickerRef}
-            className="flex min-w-0 flex-1 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            <div className="flex w-max flex-nowrap gap-2">
-              {[...categoryPills, ...categoryPills].map((cat, i) => (
-                <span
-                  key={`${cat}-${i}`}
-                  className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold text-white shadow-md ${
-                    PILL_COLORS[i % PILL_COLORS.length]
-                  }`}
-                >
-                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                </span>
-              ))}
-            </div>
+        </div>
+
+        <div
+          data-tour="tour-categories"
+          ref={categoryTickerRef}
+          className="relative z-10 mt-5 min-h-[40px] overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          <div className="flex w-max flex-nowrap gap-2">
+            <button
+              type="button"
+              className="shrink-0 rounded-full bg-white/15 p-3 text-white hover:bg-white/25"
+              aria-label="Filter categories"
+              onClick={() => setCategoryFilterOpen(true)}
+            >
+              <SlidersHorizontal className="h-5 w-5" />
+            </button>
+            {[...categoryPills, ...categoryPills].map((cat, i) => (
+              <span
+                key={`${cat}-${i}`}
+                className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold text-white shadow-md ${
+                  PILL_COLORS[i % PILL_COLORS.length]
+                }`}
+              >
+                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </span>
+            ))}
           </div>
         </div>
       </div>
@@ -313,40 +396,6 @@ export function HomeScreen() {
             </div>
           ))}
         </section>
-
-        {quizzes && liveSidebar.length > 0 && (
-          <section className="mb-5">
-            <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_2px_rgba(16,185,129,0.5)]" />
-              <h2 className="text-base font-bold text-slate-900">Live now</h2>
-              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                {liveSidebar.length} ongoing
-              </span>
-            </div>
-            <div className="flex flex-col gap-2">
-              {liveSidebar.map((q) => (
-                <motion.div
-                  key={q.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white px-4 py-3 shadow-sm"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-slate-900">{q.title}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">{q.questionCount} questions</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/quiz/${q.id}/loading`)}
-                    className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-emerald-500 active:scale-95 transition"
-                  >
-                    Play
-                  </button>
-                </motion.div>
-              ))}
-            </div>
-          </section>
-        )}
 
         <section className="mb-2 flex items-center justify-between">
           <h2 className="text-base font-bold text-slate-900">Upcoming events</h2>
@@ -456,6 +505,67 @@ export function HomeScreen() {
             ))
           )}
         </div>
+
+        <motion.section
+          className="mb-8 overflow-hidden rounded-3xl border border-violet-200/60 bg-gradient-to-br from-violet-100 via-white to-indigo-50 p-5 shadow-lg shadow-violet-500/10"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          aria-labelledby="home-invite-heading"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p
+                id="home-invite-heading"
+                className="text-sm font-extrabold text-slate-900"
+              >
+                Invite friends
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                Share your personal link. Friends open it to sign up — you both play skill
+                quizzes and climb the leaderboard.
+              </p>
+              {referralUrl ? (
+                <p className="mt-2 truncate rounded-lg bg-white/60 px-2 py-1.5 font-mono text-[10px] text-slate-500 ring-1 ring-violet-100/80">
+                  {referralUrl}
+                </p>
+              ) : (
+                <p className="mt-2 text-[11px] text-amber-700">
+                  Sign in to generate your invite link.
+                </p>
+              )}
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={!referralUrl || inviteBusy}
+                  onClick={() => void shareInviteLink()}
+                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white shadow-md shadow-violet-500/25 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {inviteBusy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Share2 className="h-4 w-4" aria-hidden />
+                  )}
+                  {invitePrimaryLabel}
+                </button>
+                <button
+                  type="button"
+                  disabled={!referralUrl}
+                  onClick={() => void copyInviteLinkOnly()}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-white/90 px-4 py-2 text-xs font-semibold text-violet-900 shadow-sm transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  <Copy className="h-3.5 w-3.5" aria-hidden />
+                  Copy
+                </button>
+              </div>
+            </div>
+            <div
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-200/90 to-fuchsia-100 shadow-inner"
+              aria-hidden
+            >
+              <Gift className="h-7 w-7 text-violet-700" strokeWidth={1.75} />
+            </div>
+          </div>
+        </motion.section>
 
         <section className="mb-6" data-tour="tour-leaderboard-preview">
           <div className="mb-3 flex items-center justify-between">
@@ -893,6 +1003,91 @@ export function HomeScreen() {
           }
         }}
       />
+
+      {addCreditsOpen ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+          role="dialog"
+          aria-modal
+          aria-labelledby="add-credits-title"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 cursor-default"
+            aria-label="Close dialog"
+            disabled={addCreditsBusy}
+            onClick={() => {
+              if (!addCreditsBusy) setAddCreditsOpen(false)
+            }}
+          />
+          <div className="relative z-10 w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl ring-1 ring-slate-200/80">
+            <h2
+              id="add-credits-title"
+              className="text-lg font-extrabold tracking-tight text-slate-900"
+            >
+              Add credits
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              ₹1 = 2 credits (e.g. ₹50 → 100 credits). This simulates a top-up until a payment
+              provider is connected.
+            </p>
+            <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Amount (₹)
+              <input
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base font-semibold text-slate-900 outline-none ring-violet-500/0 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/25"
+                value={addCreditsRupees}
+                onChange={(e) => setAddCreditsRupees(e.target.value)}
+                disabled={addCreditsBusy}
+              />
+            </label>
+            <p className="mt-2 text-sm font-medium text-violet-700">
+              ≈{' '}
+              {Math.max(0, Math.floor(Number.parseFloat(addCreditsRupees) || 0)) * 2} credits
+            </p>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                disabled={addCreditsBusy}
+                onClick={() => setAddCreditsOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 py-3 text-sm font-bold text-white shadow-md shadow-violet-500/25 transition hover:brightness-105 disabled:opacity-50"
+                disabled={addCreditsBusy}
+                onClick={() => {
+                  void (async () => {
+                    const rupees = Math.floor(Number.parseFloat(addCreditsRupees) || 0)
+                    if (rupees < 1) {
+                      toast.error('Enter at least ₹1')
+                      return
+                    }
+                    setAddCreditsBusy(true)
+                    try {
+                      await api.addWalletCredits({ amountRupees: rupees })
+                      await refreshProfile()
+                      toast.success(`Added ${rupees * 2} credits`)
+                      setAddCreditsOpen(false)
+                    } catch (e) {
+                      toast.error(api.getApiErrorMessage(e))
+                    } finally {
+                      setAddCreditsBusy(false)
+                    }
+                  })()
+                }}
+              >
+                {addCreditsBusy ? 'Adding…' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <LocationPickerSheet
         open={locationOpen}

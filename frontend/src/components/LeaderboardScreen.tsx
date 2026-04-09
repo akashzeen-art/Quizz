@@ -1,4 +1,3 @@
-import confetti from 'canvas-confetti'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -9,7 +8,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import * as api from '../api/client'
 import type { LeaderboardEntryDto, LeaderboardSort } from '../types'
@@ -47,8 +46,6 @@ function initial(displayName: string) {
 
 export function LeaderboardScreen() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const fromQuiz = location.state as { fromQuiz?: boolean; score?: number; correct?: number; total?: number } | null
   const { user } = useApp()
   const [sort, setSort] = useState<LeaderboardSort>('total')
   const [rows, setRows] = useState<LeaderboardEntryDto[] | null>(null)
@@ -73,18 +70,6 @@ export function LeaderboardScreen() {
   useEffect(() => {
     void load()
   }, [load])
-
-  useEffect(() => {
-    if (!fromQuiz?.fromQuiz) return
-    const end = Date.now() + 2800
-    const burst = () => {
-      confetti({ particleCount: 8, angle: 60, spread: 65, origin: { x: 0 }, colors: ['#7c3aed','#f59e0b','#10b981','#f43f5e'] })
-      confetti({ particleCount: 8, angle: 120, spread: 65, origin: { x: 1 }, colors: ['#7c3aed','#f59e0b','#10b981','#f43f5e'] })
-      if (Date.now() < end) requestAnimationFrame(burst)
-    }
-    requestAnimationFrame(burst)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const myRow = useMemo(() => {
     if (!user?.id || !rows) return null
@@ -161,22 +146,6 @@ export function LeaderboardScreen() {
             Rankings update when players finish quizzes. Switch tabs to compare
             scores.
           </p>
-          {fromQuiz?.fromQuiz && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.85, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 240, damping: 18, delay: 0.2 }}
-              className="mx-auto mt-4 inline-flex items-center gap-3 rounded-2xl border border-white/20 bg-white/15 px-5 py-3 backdrop-blur-sm"
-            >
-              <Sparkles className="h-5 w-5 text-amber-300" />
-              <div className="text-left">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-white/60">Your result</p>
-                <p className="text-lg font-extrabold tabular-nums text-white">
-                  {fromQuiz.score ?? 0} pts &nbsp;·&nbsp; {fromQuiz.correct ?? 0}/{fromQuiz.total ?? 0} correct
-                </p>
-              </div>
-            </motion.div>
-          )}
         </motion.div>
       </header>
 

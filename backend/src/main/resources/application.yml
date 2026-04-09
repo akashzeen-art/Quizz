@@ -26,6 +26,11 @@ app:
   google:
     # Same OAuth 2.0 Web Client ID as VITE_GOOGLE_CLIENT_ID on the frontend.
     client-id: ${GOOGLE_CLIENT_ID:}
+  wallet:
+    # Credits deducted once per quiz start (see POST /quiz/deduct-credits).
+    quiz-start-cost: ${WALLET_QUIZ_START_COST:10}
+    # How long GET /quiz/{id} + submit-answer stay authorized after deduct.
+    entitlement-hours: ${WALLET_ENTITLEMENT_HOURS:24}
   admin:
     active-window-minutes: ${ADMIN_ACTIVE_MINUTES:15}
     # Only used when no admin exists yet (first boot). Change in production via env.

@@ -2,7 +2,9 @@ import { motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import * as api from '../api/client'
+import { useApp } from '../context/AppContext'
 import { dicebearUrl } from '../constants/avatars'
 import type { QuizDto } from '../types'
 import { GeometricOverlay } from './GeometricOverlay'
@@ -70,11 +72,13 @@ function ScrollingPlayerRow({
 export function QuizLoadingScreen() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { setUser } = useApp()
   const preferVideo = usePreferVideo()
   const [sec, setSec] = useState(LOAD_SECONDS)
   const total = LOAD_SECONDS
   const [quizMeta, setQuizMeta] = useState<QuizDto | null>(null)
   const [lobbyPlayers, setLobbyPlayers] = useState(() => makeLobbyPlayers())
+  const [creditReady, setCreditReady] = useState(false)
 
   const playerRows = useMemo(() => {
     let start = 0
@@ -94,13 +98,34 @@ export function QuizLoadingScreen() {
 
   useEffect(() => {
     if (!id) return
-    api
-      .fetchQuiz(id)
-      .then((d) => setQuizMeta(d.quiz))
-      .catch(() => {})
-  }, [id])
+    let cancelled = false
+    setCreditReady(false)
+    ;(async () => {
+      try {
+        const clientId = api.getQuizPlayClientId(id)
+        const bal = await api.deductQuizCredits(id, clientId)
+        if (cancelled) return
+        setUser((prev) =>
+          prev ? { ...prev, credits: bal.credits, totalSpent: bal.totalSpent } : prev,
+        )
+        const d = await api.fetchQuiz(id, clientId)
+        if (cancelled) return
+        setQuizMeta(d.quiz)
+        setCreditReady(true)
+      } catch (e) {
+        if (!cancelled) {
+          toast.error(api.getApiErrorMessage(e))
+          navigate('/home', { replace: true })
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [id, navigate, setUser])
 
   useEffect(() => {
+    if (!id || !creditReady) return
     const end = Date.now() + total * 1000
     const t = setInterval(() => {
       const left = Math.max(0, Math.ceil((end - Date.now()) / 1000))
@@ -111,7 +136,7 @@ export function QuizLoadingScreen() {
       }
     }, 200)
     return () => clearInterval(t)
-  }, [id, navigate, total])
+  }, [id, navigate, total, creditReady])
 
   return (
     <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-gradient-to-b from-violet-700 to-indigo-950">

@@ -13,6 +13,8 @@ public record UserProfileDto(
     int monthlyScore,
     int points,
     int dayScore,
+    int credits,
+    int totalSpent,
     List<String> categories,
     List<String> playedDates,
     String location,

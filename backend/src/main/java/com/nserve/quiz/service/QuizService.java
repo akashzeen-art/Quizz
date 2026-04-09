@@ -11,7 +11,9 @@ import com.nserve.quiz.dto.QuizDetailResponse;
 import com.nserve.quiz.dto.QuizDto;
 import com.nserve.quiz.dto.SubmitAnswerRequest;
 import com.nserve.quiz.dto.SubmitAnswerResponse;
+import com.nserve.quiz.domain.QuizPlayEntitlement;
 import com.nserve.quiz.repo.QuestionRepository;
+import com.nserve.quiz.repo.QuizPlayEntitlementRepository;
 import com.nserve.quiz.repo.QuizRepository;
 import com.nserve.quiz.repo.ResultRepository;
 import com.nserve.quiz.repo.UserRepository;
@@ -23,7 +25,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.Optional;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class QuizService {
@@ -34,6 +39,7 @@ public class QuizService {
   private final QuestionRepository questionRepository;
   private final ResultRepository resultRepository;
   private final UserRepository userRepository;
+  private final QuizPlayEntitlementRepository playEntitlementRepository;
   private final FeedbackService feedbackService;
 
   public QuizService(
@@ -41,11 +47,13 @@ public class QuizService {
       QuestionRepository questionRepository,
       ResultRepository resultRepository,
       UserRepository userRepository,
+      QuizPlayEntitlementRepository playEntitlementRepository,
       FeedbackService feedbackService) {
     this.quizRepository = quizRepository;
     this.questionRepository = questionRepository;
     this.resultRepository = resultRepository;
     this.userRepository = userRepository;
+    this.playEntitlementRepository = playEntitlementRepository;
     this.feedbackService = feedbackService;
   }
 
@@ -70,7 +78,22 @@ public class QuizService {
     return ordered.stream().map(this::toDto).toList();
   }
 
-  public QuizDetailResponse getQuizForUser(User user, String quizId) {
+  public QuizDetailResponse getQuizForUser(User user, String quizId, String playRef) {
+    if (playRef == null || playRef.isBlank()) {
+      throw new ResponseStatusException(
+          HttpStatus.PAYMENT_REQUIRED,
+          "Missing play reference. Open the quiz from the lobby after credits are reserved.");
+    }
+    Optional<QuizPlayEntitlement> ent = playEntitlementRepository.findByClientRequestId(playRef);
+    if (ent.isEmpty()
+        || !ent.get().getUserId().equals(user.getId())
+        || !ent.get().getQuizId().equals(quizId)
+        || ent.get().getExpiresAt().isBefore(Instant.now())) {
+      throw new ResponseStatusException(
+          HttpStatus.PAYMENT_REQUIRED,
+          "No active play session for this quiz. Return to the lobby and try again.");
+    }
+
     Quiz quiz =
         quizRepository
             .findById(quizId)
@@ -106,6 +129,14 @@ public class QuizService {
   }
 
   public SubmitAnswerResponse submitAnswer(User user, SubmitAnswerRequest req) {
+    if (playEntitlementRepository
+        .findFirstByUserIdAndQuizIdAndExpiresAtAfterOrderByCreatedAtDesc(
+            user.getId(), req.quizId(), Instant.now())
+        .isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.PAYMENT_REQUIRED, "No active quiz session for this quiz.");
+    }
+
     var dup =
         resultRepository.findByUserIdAndQuizIdAndQuestionId(
             user.getId(), req.quizId(), req.questionId());
@@ -235,7 +266,13 @@ public class QuizService {
   }
 
   private static int computePoints(boolean correct, Long timeMs) {
-    return correct ? 3 : 0;
+    if (!correct) {
+      return 0;
+    }
+    long t = timeMs == null ? QUESTION_MS : Math.min(QUESTION_MS, Math.max(0, timeMs));
+    int base = 10;
+    int bonus = (int) Math.round((QUESTION_MS - t) / (double) QUESTION_MS * 5.0);
+    return base + bonus;
   }
 
   private QuizDto toDto(Quiz q) {

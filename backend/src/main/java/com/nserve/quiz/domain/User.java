@@ -53,6 +53,12 @@ public class User {
   private int points;
   private int dayScore;
 
+  /** Wallet balance for quiz starts and future purchases. */
+  private int credits;
+
+  /** Lifetime credits spent (e.g. quiz starts). */
+  private int totalSpent;
+
   /** yyyy-MM-dd in UTC — reset dayScore when day changes */
   private String dayScoreDate;
 
@@ -207,6 +213,22 @@ public class User {
 
   public void setDayScore(int dayScore) {
     this.dayScore = dayScore;
+  }
+
+  public int getCredits() {
+    return credits;
+  }
+
+  public void setCredits(int credits) {
+    this.credits = credits;
+  }
+
+  public int getTotalSpent() {
+    return totalSpent;
+  }
+
+  public void setTotalSpent(int totalSpent) {
+    this.totalSpent = totalSpent;
   }
 
   public String getDayScoreDate() {

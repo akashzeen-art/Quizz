@@ -4,6 +4,7 @@ import com.nserve.quiz.domain.Quiz;
 import com.nserve.quiz.domain.QuizStatus;
 import com.nserve.quiz.repo.QuestionRepository;
 import com.nserve.quiz.repo.QuizRepository;
+import com.nserve.quiz.repo.UserRepository;
 import com.nserve.quiz.seed.QuestionSeedGenerator;
 import java.time.Instant;
 import org.slf4j.Logger;
@@ -16,19 +17,35 @@ import org.springframework.context.annotation.Configuration;
 public class DataInitializer {
 
   private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
+  private static final int FREE_STARTER_CREDITS = 100;
 
   private final QuestionRepository questionRepository;
   private final QuizRepository quizRepository;
+  private final UserRepository userRepository;
 
-  public DataInitializer(QuestionRepository questionRepository, QuizRepository quizRepository) {
+  public DataInitializer(
+      QuestionRepository questionRepository,
+      QuizRepository quizRepository,
+      UserRepository userRepository) {
     this.questionRepository = questionRepository;
     this.quizRepository = quizRepository;
+    this.userRepository = userRepository;
   }
 
   @Bean
   CommandLineRunner seedData() {
     return args -> {
       try {
+        // Grant free starter credits to existing users who have 0
+        var zeroUsers = userRepository.findAll().stream()
+            .filter(u -> u.getCredits() <= 0)
+            .toList();
+        if (!zeroUsers.isEmpty()) {
+          zeroUsers.forEach(u -> u.setCredits(FREE_STARTER_CREDITS));
+          userRepository.saveAll(zeroUsers);
+          log.info("Granted {} starter credits to {} existing users", FREE_STARTER_CREDITS, zeroUsers.size());
+        }
+
         long qc = questionRepository.count();
         if (qc == 0) {
           var questions = QuestionSeedGenerator.generate();

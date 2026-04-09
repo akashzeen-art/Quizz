@@ -42,6 +42,10 @@ export interface UserProfileDto {
   monthlyScore: number
   points: number
   dayScore: number
+  /** Wallet balance (quiz starts cost credits). */
+  credits: number
+  /** Lifetime credits spent. */
+  totalSpent: number
   categories: string[]
   playedDates: string[]
   /** City / region label (optional). */

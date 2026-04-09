@@ -43,7 +43,16 @@ export function getApiErrorMessage(err: unknown): string {
       return 'Database unavailable. Check MongoDB Atlas, MONGODB_URI in backend/.env, and network/TLS.'
     }
     if (status === 500 && data?.error) return data.error
+    if (status === 402) {
+      const m =
+        (data as { error?: string; message?: string } | undefined)?.error ??
+        (data as { message?: string } | undefined)?.message
+      if (m) return m
+      return 'Not enough credits to continue'
+    }
     if (data?.error) return data.error
+    const msgOnly = (data as { message?: string } | undefined)?.message
+    if (msgOnly) return msgOnly
     if (err.message) return err.message
   }
   return 'Something went wrong'
@@ -82,6 +91,8 @@ export function normalizeUserProfile(raw: unknown): UserProfileDto {
     monthlyScore: Number(r.monthlyScore ?? 0),
     points: Number(r.points ?? 0),
     dayScore: Number(r.dayScore ?? 0),
+    credits: Number(r.credits ?? 0),
+    totalSpent: Number(r.totalSpent ?? 0),
     categories: cats,
     playedDates: played,
     location:
@@ -333,13 +344,65 @@ function normalizeQuestion(raw: unknown): QuestionDto {
   }
 }
 
+const QUIZ_PLAY_STORAGE_PREFIX = 'nserve_quiz_play:'
+
+/** Stable idempotency key per quiz tab session; reused so refresh does not double-charge. */
+export function getQuizPlayClientId(quizId: string): string {
+  try {
+    const k = QUIZ_PLAY_STORAGE_PREFIX + quizId
+    let v = sessionStorage.getItem(k)
+    if (!v) {
+      v = crypto.randomUUID()
+      sessionStorage.setItem(k, v)
+    }
+    return v
+  } catch {
+    return crypto.randomUUID()
+  }
+}
+
+export function clearQuizPlayClientId(quizId: string) {
+  try {
+    sessionStorage.removeItem(QUIZ_PLAY_STORAGE_PREFIX + quizId)
+  } catch {
+    /* ignore */
+  }
+}
+
+export type WalletBalanceDto = { credits: number; totalSpent: number }
+
+export async function fetchWalletBalance() {
+  const { data } = await api.get<WalletBalanceDto>('/wallet/balance')
+  return data
+}
+
+export async function addWalletCredits(payload: {
+  amountRupees?: number
+  credits?: number
+  paymentProvider?: string
+  externalPaymentId?: string
+}) {
+  const { data } = await api.post<WalletBalanceDto>('/wallet/add-credits', payload)
+  return data
+}
+
+export async function deductQuizCredits(quizId: string, clientRequestId: string) {
+  const { data } = await api.post<WalletBalanceDto & { clientRequestId: string; quizId: string }>(
+    '/quiz/deduct-credits',
+    { quizId, clientRequestId },
+  )
+  return data
+}
+
 export async function fetchQuizList() {
   const { data } = await api.get<unknown[]>('/quiz/list')
   return Array.isArray(data) ? data.map(normalizeQuiz) : []
 }
 
-export async function fetchQuiz(id: string) {
-  const { data } = await api.get<Record<string, unknown>>(`/quiz/${id}`)
+export async function fetchQuiz(id: string, playRef?: string) {
+  const { data } = await api.get<Record<string, unknown>>(`/quiz/${id}`, {
+    headers: playRef ? { 'X-Quiz-Play-Ref': playRef } : {},
+  })
   const quizRaw = data.quiz
   const questions = data.questions
   return {

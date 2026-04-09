@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type SetStateAction,
 } from 'react'
 import type { UserProfileDto } from '../types'
 import * as api from '../api/client'
@@ -20,7 +21,7 @@ type AppContextValue = {
   token: string | null
   user: UserProfileDto | null
   loading: boolean
-  setUser: (u: UserProfileDto | null) => void
+  setUser: (u: SetStateAction<UserProfileDto | null>) => void
   loginWithToken: (token: string, user: UserProfileDto) => void
   logout: () => void
   refreshProfile: () => Promise<void>

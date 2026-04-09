@@ -195,14 +195,15 @@ export function QuizPlayScreen() {
     let cancelled = false
     ;(async () => {
       try {
-        const detail = await api.fetchQuiz(id)
+        const clientId = api.getQuizPlayClientId(id)
+        const detail = await api.fetchQuiz(id, clientId)
         if (!cancelled) {
           setQuizMeta(detail.quiz)
           setQuestions(detail.questions)
           if (detail.questions.length === 0) toast.error('No questions for your categories')
         }
-      } catch {
-        toast.error('Failed to load quiz')
+      } catch (e) {
+        toast.error(api.getApiErrorMessage(e))
         navigate('/home', { replace: true })
       } finally {
         if (!cancelled) setLoading(false)
@@ -256,16 +257,15 @@ export function QuizPlayScreen() {
           timeMs,
         })
         const bundle = randomFeedbackBundle(res.correct)
-        const pts = res.correct ? 3 : 0
         setResult({
           correct: bundle.correct,
           msg: bundle.message,
           effectId: bundle.effectId,
-          points: pts,
+          points: res.pointsEarned,
           correctAnswerIndex: res.correctAnswerIndex,
           selectedIndex: timedOut ? undefined : answerIndex,
         })
-        setSessionScore((s) => s + pts)
+        setSessionScore((s) => s + Math.max(0, res.pointsEarned))
         if (res.correct) setCorrectCount((c) => c + 1)
         await refreshProfile()
       } catch {
@@ -349,141 +349,80 @@ export function QuizPlayScreen() {
   }
 
   if (showEndCard) {
-    const accuracy = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0
-    const grade =
-      accuracy === 100 ? { label: 'Perfect! 🏆', color: 'text-amber-500', bg: 'from-amber-400 to-orange-500', emoji: '🏆' }
-      : accuracy >= 70 ? { label: 'Great job! 🥇', color: 'text-emerald-600', bg: 'from-emerald-400 to-teal-500', emoji: '🥇' }
-      : accuracy >= 40 ? { label: 'Good try! 🎯', color: 'text-violet-600', bg: 'from-violet-400 to-indigo-500', emoji: '🎯' }
-      : { label: 'Keep going! 💪', color: 'text-slate-600', bg: 'from-slate-400 to-slate-600', emoji: '💪' }
-
     return (
-      <div className="app-screen relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-5 pb-10 safe-pt-header">
-        {/* bg blobs */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-violet-500/25 blur-3xl" />
-          <div className="absolute -bottom-24 -right-24 h-80 w-80 rounded-full bg-fuchsia-500/25 blur-3xl" />
-          <div className="absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-400/15 blur-2xl" />
-        </div>
+      <div className="app-screen relative min-h-[100dvh] overflow-hidden safe-pt-header">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-fuchsia-500/20 via-violet-500/10 to-indigo-500/20" />
+        <div className="pointer-events-none absolute -left-16 -top-12 h-44 w-44 rounded-full bg-pink-400/30 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-12 -right-12 h-52 w-52 rounded-full bg-indigo-400/30 blur-3xl" />
 
-        {/* floating emoji particles */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          {[...Array(16)].map((_, i) => (
+        <div className="pointer-events-none absolute inset-0">
+          {[...Array(18)].map((_, i) => (
             <motion.span
               key={i}
-              className="absolute text-xl"
-              initial={{ opacity: 0, y: 60, scale: 0 }}
-              animate={{ opacity: [0, 1, 0], y: [60, -80, -160], scale: [0, 1, 0.6] }}
-              transition={{ delay: i * 0.15, duration: 3, repeat: Infinity, repeatDelay: i * 0.4 }}
-              style={{ left: `${5 + (i * 21) % 88}%`, bottom: '10%' }}
+              className="absolute"
+              initial={{ opacity: 0, scale: 0.4, y: 24 }}
+              animate={{
+                opacity: [0, 1, 0.55, 1],
+                scale: [0.4, 1.1, 0.95, 1],
+                y: [24, -8, 0],
+              }}
+              transition={{
+                delay: i * 0.045,
+                duration: 1.4,
+                repeat: Infinity,
+                repeatType: 'mirror',
+              }}
+              style={{
+                left: `${8 + ((i * 17) % 84)}%`,
+                top: `${8 + ((i * 23) % 76)}%`,
+              }}
             >
-              {['✦', '✧', '⭐', '💫', '✨', '🌟', '⚡', '🎉'][i % 8]}
+              <Sparkles className="h-4 w-4 text-amber-400/80" />
             </motion.span>
           ))}
         </div>
 
-        <div className="relative z-10 w-full max-w-sm">
-          {/* trophy */}
+        <div className="relative z-10 mx-auto flex min-h-[100dvh] max-w-md items-center px-5 pb-10">
           <motion.div
-            className="mx-auto mb-5 flex h-28 w-28 items-center justify-center"
-            initial={{ scale: 0, rotate: -30 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: 'spring', stiffness: 220, damping: 12, delay: 0.1 }}
+            initial={{ opacity: 0, y: 20, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 18 }}
+            className="w-full rounded-3xl border border-violet-200/80 bg-white/92 p-6 text-center shadow-2xl shadow-violet-500/20 backdrop-blur-md"
           >
             <motion.div
-              className={`flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br ${grade.bg} shadow-2xl`}
-              animate={{ scale: [1, 1.06, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
+              className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-fuchsia-500 text-white shadow-xl shadow-fuchsia-500/35"
+              animate={{ rotate: [0, -6, 6, 0], scale: [1, 1.06, 1] }}
+              transition={{ duration: 1.6, repeat: Infinity }}
             >
-              <span className="text-5xl">{grade.emoji}</span>
+              <Sparkles className="h-10 w-10" />
             </motion.div>
-          </motion.div>
 
-          <motion.h2
-            className={`mb-1 text-center text-3xl font-extrabold tracking-tight ${grade.color}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            {grade.label}
-          </motion.h2>
-          <motion.p
-            className="mb-6 text-center text-sm text-slate-500"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-          >
-            Quiz complete — here's how you did
-          </motion.p>
+            <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Level Complete!</h2>
+            <p className="mt-1 text-sm font-medium text-slate-600">
+              Great play! Here is your final quiz result.
+            </p>
 
-          {/* 3 stat cards */}
-          <motion.div
-            className="mb-5 grid grid-cols-3 gap-3"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45, type: 'spring', stiffness: 180 }}
-          >
-            {[
-              { value: sessionScore, label: 'Score', border: 'border-violet-200', text: 'text-violet-700' },
-              { value: `${correctCount}/${questions.length}`, label: 'Correct', border: 'border-lime-200', text: 'text-lime-700' },
-              { value: `${accuracy}%`, label: 'Accuracy', border: 'border-amber-200', text: 'text-amber-600' },
-            ].map((s) => (
-              <div key={s.label} className={`flex flex-col items-center rounded-2xl border ${s.border} bg-white/90 py-4 shadow-md`}>
-                <span className={`text-xl font-black tabular-nums ${s.text}`}>{s.value}</span>
-                <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{s.label}</span>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-lime-200 bg-lime-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-lime-700">Correct</p>
+                <p className="mt-1 text-2xl font-extrabold tabular-nums text-lime-800">
+                  {correctCount}/{questions.length}
+                </p>
               </div>
-            ))}
-          </motion.div>
-
-          {/* question bar */}
-          <motion.div
-            className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.55 }}
-          >
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Question breakdown</p>
-            <div className="flex gap-1">
-              {questions.map((_, qi) => (
-                <motion.div
-                  key={qi}
-                  className={`h-2.5 flex-1 rounded-full ${qi < correctCount ? 'bg-emerald-500' : 'bg-rose-400'}`}
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ delay: 0.6 + qi * 0.05, type: 'spring', stiffness: 200 }}
-                  style={{ transformOrigin: 'left' }}
-                />
-              ))}
+              <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Score</p>
+                <p className="mt-1 text-2xl font-extrabold tabular-nums text-violet-800">{sessionScore}</p>
+              </div>
             </div>
-            <div className="mt-2 flex justify-between text-[10px] text-slate-400">
-              <span className="text-emerald-600 font-semibold">{correctCount} correct</span>
-              <span className="text-rose-500 font-semibold">{questions.length - correctCount} wrong</span>
-            </div>
-          </motion.div>
 
-          {/* CTAs */}
-          <motion.div
-            className="space-y-3"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-          >
             <button
               type="button"
-              className="btn-app-primary py-4 text-base"
-              onClick={() =>
-                navigate('/leaderboard', {
-                  replace: true,
-                  state: { fromQuiz: true, score: sessionScore, correct: correctCount, total: questions.length },
-                })
-              }
-            >
-              <Sparkles className="h-5 w-5" />
-              See Leaderboard
-            </button>
-            <button
-              type="button"
-              className="w-full rounded-2xl border border-slate-200 bg-white/80 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-              onClick={() => navigate('/home', { replace: true })}
+              className="btn-app-primary mt-6 py-4"
+              onClick={() => {
+                toast.success('Quiz complete!')
+                if (id) api.clearQuizPlayClientId(id)
+                navigate('/home', { replace: true })
+              }}
             >
               Back to home
             </button>
