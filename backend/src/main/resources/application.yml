@@ -4,6 +4,7 @@ spring:
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/skill_quiz}
+      auto-index-creation: true
   servlet:
     multipart:
       # Question media + PDF/DOC source uploads

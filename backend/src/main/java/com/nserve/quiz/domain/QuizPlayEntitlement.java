@@ -15,7 +15,6 @@ public class QuizPlayEntitlement {
 
   @Indexed private String quizId;
 
-  @Indexed(unique = true)
   private String clientRequestId;
 
   private Instant createdAt;

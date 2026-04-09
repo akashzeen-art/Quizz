@@ -20,11 +20,9 @@ public class ApiExceptionHandler {
 
   @ExceptionHandler(DataAccessException.class)
   public ResponseEntity<Map<String, String>> databaseUnavailable(DataAccessException ex) {
+    String msg = ex.getMostSpecificCause().getMessage();
     return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-        .body(
-            Map.of(
-                "error",
-                "Database unavailable. Check MONGODB_URI, Atlas IP access, and TLS (see backend logs)."));
+        .body(Map.of("error", "Database error: " + msg));
   }
 
   @ExceptionHandler(IllegalArgumentException.class)
