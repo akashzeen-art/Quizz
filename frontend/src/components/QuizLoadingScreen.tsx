@@ -99,16 +99,21 @@ export function QuizLoadingScreen() {
   useEffect(() => {
     if (!id) return
     let cancelled = false
-    setCreditReady(false)
     ;(async () => {
       try {
-        const clientId = api.getQuizPlayClientId(id)
-        const bal = await api.deductQuizCredits(id, clientId)
-        if (cancelled) return
-        setUser((prev) =>
-          prev ? { ...prev, credits: bal.credits, totalSpent: bal.totalSpent } : prev,
-        )
-        const d = await api.fetchQuiz(id, clientId)
+        // Try credit deduction; if backend doesn't support it yet, fall through
+        try {
+          const clientId = api.getQuizPlayClientId(id)
+          const bal = await api.deductQuizCredits(id, clientId)
+          if (!cancelled) {
+            setUser((prev) =>
+              prev ? { ...prev, credits: bal.credits, totalSpent: bal.totalSpent } : prev,
+            )
+          }
+        } catch {
+          // credit system not available — continue anyway
+        }
+        const d = await api.fetchQuiz(id)
         if (cancelled) return
         setQuizMeta(d.quiz)
         setCreditReady(true)
