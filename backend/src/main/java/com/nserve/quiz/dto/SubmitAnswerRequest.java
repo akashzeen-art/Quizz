@@ -8,4 +8,5 @@ public record SubmitAnswerRequest(
     @NotBlank String questionId,
     Integer answerIndex,
     Double sliderValue,
-    @NotNull Long timeMs) {}
+    @NotNull Long timeMs,
+    boolean timedOut) {}

@@ -22,14 +22,17 @@ public class AuthService {
 
   private final UserRepository userRepository;
   private final UserMapper userMapper;
+  private final WalletService walletService;
   private final String googleClientId;
 
   public AuthService(
       UserRepository userRepository,
       UserMapper userMapper,
+      WalletService walletService,
       @Value("${app.google.client-id:}") String googleClientId) {
     this.userRepository = userRepository;
     this.userMapper = userMapper;
+    this.walletService = walletService;
     this.googleClientId = googleClientId != null ? googleClientId.trim() : "";
   }
 
@@ -185,6 +188,7 @@ public class AuthService {
   }
 
   private AuthResponse authResponse(User user) {
+    walletService.grantStarterCreditsIfNeeded(user);
     UserProfileDto dto = userMapper.toDto(user);
     return new AuthResponse(user.getAuthToken(), dto);
   }

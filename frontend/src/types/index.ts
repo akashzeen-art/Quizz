@@ -73,9 +73,9 @@ export interface LeaderboardEntryDto {
 
 export interface SubmitAnswerResponse {
   correct: boolean
+  timedOut: boolean
   pointsEarned: number
   feedbackMessage: string
   totalScore: number
-  /** Present after MCQ/binary/MCQ3 submit — for reveal UI */
   correctAnswerIndex?: number | null
 }

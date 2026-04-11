@@ -15,6 +15,7 @@ public class Result {
   private String quizId;
   private String questionId;
   private boolean correct;
+  private boolean timedOut;
   private int pointsEarned;
   private Instant answeredAt;
 
@@ -52,13 +53,10 @@ public class Result {
     this.questionId = questionId;
   }
 
-  public boolean isCorrect() {
-    return correct;
-  }
-
-  public void setCorrect(boolean correct) {
-    this.correct = correct;
-  }
+  public boolean isCorrect() { return correct; }
+  public void setCorrect(boolean correct) { this.correct = correct; }
+  public boolean isTimedOut() { return timedOut; }
+  public void setTimedOut(boolean timedOut) { this.timedOut = timedOut; }
 
   public int getPointsEarned() {
     return pointsEarned;

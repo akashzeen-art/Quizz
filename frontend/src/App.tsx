@@ -10,6 +10,7 @@ import { QuizPlayScreen } from './components/QuizPlayScreen'
 import { EventsScreen } from './components/EventsScreen'
 import { LeaderboardScreen } from './components/LeaderboardScreen'
 import { ProfileScreen } from './components/ProfileScreen'
+import { WalletScreen } from './components/WalletScreen'
 import { shouldForceCategoryOnboarding } from './lib/categoryOnboarding'
 import { AdminApp } from './admin/AdminApp'
 
@@ -93,6 +94,16 @@ function AppRoutes() {
           <RequireAuth>
             <RequireCategories>
               <EventsScreen />
+            </RequireCategories>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/wallet"
+        element={
+          <RequireAuth>
+            <RequireCategories>
+              <WalletScreen />
             </RequireCategories>
           </RequireAuth>
         }

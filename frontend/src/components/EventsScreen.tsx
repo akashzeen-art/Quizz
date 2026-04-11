@@ -325,7 +325,6 @@ export function EventsScreen() {
       <AppBottomNav
         active="events"
         onPlay={() => void openFirstJoinable()}
-        onProfile={() => navigate('/profile')}
       />
     </div>
   )

@@ -376,6 +376,20 @@ export async function fetchWalletBalance() {
   return data
 }
 
+export type CreditTransaction = {
+  id: string
+  type: 'credit_added' | 'credit_used'
+  amount: number
+  balanceAfter: number
+  description: string
+  createdAt: string
+}
+
+export async function fetchWalletTransactions(): Promise<CreditTransaction[]> {
+  const { data } = await api.get<CreditTransaction[]>('/wallet/transactions')
+  return data
+}
+
 export async function addWalletCredits(payload: {
   amountRupees?: number
   credits?: number
@@ -419,6 +433,7 @@ export async function submitAnswer(body: {
   answerIndex?: number
   sliderValue?: number
   timeMs: number
+  timedOut: boolean
 }) {
   const { data } = await api.post<SubmitAnswerResponse>(
     '/quiz/submit-answer',

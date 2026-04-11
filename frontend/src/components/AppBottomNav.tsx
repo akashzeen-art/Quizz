@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  Coins,
   Home,
   Play,
   Trophy,
@@ -7,15 +8,14 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
-export type BottomNavTab = 'home' | 'events' | 'leaderboard' | 'profile'
+export type BottomNavTab = 'home' | 'events' | 'leaderboard' | 'wallet' | 'profile'
 
 type Props = {
   active: BottomNavTab
   onPlay: () => void
-  onProfile: () => void
 }
 
-export function AppBottomNav({ active, onPlay, onProfile }: Props) {
+export function AppBottomNav({ active, onPlay }: Props) {
   const navigate = useNavigate()
 
   const tabClass = (tab: BottomNavTab) =>
@@ -39,20 +39,19 @@ export function AppBottomNav({ active, onPlay, onProfile }: Props) {
           <span className="absolute -top-0.5 h-1 w-5 rounded-full bg-violet-500" />
         )}
       </button>
+
       <button
         type="button"
         className={tabClass('events')}
         onClick={() => navigate('/events')}
       >
-        <CalendarDays
-          className="h-5 w-5"
-          strokeWidth={active === 'events' ? 2.5 : 2}
-        />
+        <CalendarDays className="h-5 w-5" strokeWidth={active === 'events' ? 2.5 : 2} />
         <span className="text-[10px] font-semibold">Events</span>
         {active === 'events' && (
           <span className="absolute -top-0.5 h-1 w-5 rounded-full bg-violet-500" />
         )}
       </button>
+
       <div className="relative -top-6 flex flex-col items-center gap-1 pb-2">
         <button
           type="button"
@@ -65,24 +64,27 @@ export function AppBottomNav({ active, onPlay, onProfile }: Props) {
         </button>
         <span className="text-[10px] font-semibold text-slate-500">Play</span>
       </div>
+
       <button
         type="button"
         className={tabClass('leaderboard')}
         onClick={() => navigate('/leaderboard')}
       >
-        <Trophy
-          className="h-5 w-5"
-          strokeWidth={active === 'leaderboard' ? 2.5 : 2}
-        />
+        <Trophy className="h-5 w-5" strokeWidth={active === 'leaderboard' ? 2.5 : 2} />
         <span className="text-[10px] font-semibold">Ranks</span>
         {active === 'leaderboard' && (
           <span className="absolute -top-0.5 h-1 w-5 rounded-full bg-violet-500" />
         )}
       </button>
-      <button type="button" className={tabClass('profile')} onClick={onProfile}>
-        <User className="h-5 w-5" strokeWidth={active === 'profile' ? 2.5 : 2} />
-        <span className="text-[10px] font-semibold">Profile</span>
-        {active === 'profile' && (
+
+      <button
+        type="button"
+        className={tabClass('wallet')}
+        onClick={() => navigate('/wallet')}
+      >
+        <Coins className="h-5 w-5" strokeWidth={active === 'wallet' ? 2.5 : 2} />
+        <span className="text-[10px] font-semibold">Wallet</span>
+        {active === 'wallet' && (
           <span className="absolute -top-0.5 h-1 w-5 rounded-full bg-violet-500" />
         )}
       </button>

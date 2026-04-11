@@ -164,7 +164,7 @@ public class QuizService {
               .findById(req.questionId())
               .orElseThrow(() -> new IllegalArgumentException("Question not found"));
       Integer reveal = qq.getInputType() == InputType.slider ? null : qq.getCorrectAnswerIndex();
-      return new SubmitAnswerResponse(r.isCorrect(), 0, "Already answered", user.getTotalScore(), reveal);
+      return new SubmitAnswerResponse(r.isCorrect(), false, 0, "Already answered", user.getTotalScore(), reveal);
     }
 
     Question q =
@@ -173,24 +173,26 @@ public class QuizService {
             .orElseThrow(() -> new IllegalArgumentException("Question not found"));
 
     boolean correct = evaluate(q, req);
-    int points = computePoints(correct, req.timeMs());
+    int points = computePoints(correct, req.timedOut());
 
     Result row = new Result();
     row.setUserId(user.getId());
     row.setQuizId(req.quizId());
     row.setQuestionId(req.questionId());
     row.setCorrect(correct);
+    row.setTimedOut(req.timedOut());
     row.setPointsEarned(points);
     row.setAnsweredAt(Instant.now());
     resultRepository.save(row);
 
     if (points > 0) applyPoints(user, points);
+    else if (points < 0) applyNegativePoints(user, points);
     else ensurePlayedDate(user);
 
     User saved = userRepository.findById(user.getId()).orElse(user);
     Integer revealIdx = q.getInputType() == InputType.slider ? null : q.getCorrectAnswerIndex();
     return new SubmitAnswerResponse(
-        correct, points, feedbackService.random(correct), saved.getTotalScore(), revealIdx);
+        correct, req.timedOut(), points, feedbackService.random(correct), saved.getTotalScore(), revealIdx);
   }
 
   private void assertQuizJoinable(Quiz quiz) {
@@ -238,6 +240,21 @@ public class QuizService {
     userRepository.save(u);
   }
 
+  private void applyNegativePoints(User user, int points) {
+    User u = userRepository.findById(user.getId()).orElseThrow();
+    String today = LocalDate.now(ZoneOffset.UTC).toString();
+    if (!today.equals(u.getDayScoreDate())) { u.setDayScore(0); u.setDayScoreDate(today); }
+    u.setDayScore(Math.max(0, u.getDayScore() + points));
+    u.setTotalScore(Math.max(0, u.getTotalScore() + points));
+    u.setWeeklyScore(Math.max(0, u.getWeeklyScore() + points));
+    u.setMonthlyScore(Math.max(0, u.getMonthlyScore() + points));
+    u.setPoints(Math.max(0, u.getPoints() + points));
+    List<String> dates = u.getPlayedDates();
+    if (dates == null) { dates = new ArrayList<>(); u.setPlayedDates(dates); }
+    if (!dates.contains(today)) dates.add(today);
+    userRepository.save(u);
+  }
+
   private static boolean evaluate(Question q, SubmitAnswerRequest req) {
     if (q.getInputType() == InputType.slider) {
       if (req.sliderValue() == null || q.getCorrectNumeric() == null) return false;
@@ -253,8 +270,9 @@ public class QuizService {
     return req.answerIndex().equals(q.getCorrectAnswerIndex());
   }
 
-  private static int computePoints(boolean correct, Long timeMs) {
-    return correct ? 3 : 0;
+  private static int computePoints(boolean correct, boolean timedOut) {
+    if (timedOut) return 0;
+    return correct ? 10 : -2;
   }
 
   private QuizDto toDto(Quiz q) {

@@ -188,7 +188,7 @@ export function QuizLoadingScreen() {
         </motion.div>
 
         <div
-          className="mt-5 w-full max-w-sm space-y-2.5"
+          className="relative mt-5 w-full max-w-sm space-y-2.5"
           aria-label="Players joining"
         >
           {playerRows.map((row, i) => (
@@ -199,13 +199,16 @@ export function QuizLoadingScreen() {
               reverse={i % 2 === 1}
             />
           ))}
-        </div>
 
-        <div className="mt-auto flex flex-col items-center pt-10">
-          <p className="text-3xl font-bold tabular-nums text-white">{sec}</p>
-          <p className="mt-2 text-xs font-medium uppercase tracking-wider text-white/70">
-            Starting soon
-          </p>
+          {/* Timer overlaid centered on the players section */}
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <div className="flex flex-col items-center">
+              <p className="text-5xl font-extrabold tabular-nums text-white drop-shadow-lg">{sec}</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-white/70">
+                Starting soon
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

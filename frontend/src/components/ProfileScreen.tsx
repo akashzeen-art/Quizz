@@ -7,14 +7,17 @@ import {
   CalendarDays,
   CalendarRange,
   Camera,
+  Coins,
   Loader2,
   Mail,
   MapPin,
   Phone,
+  Plus,
   Save,
   UserRound,
 } from 'lucide-react'
 import * as api from '../api/client'
+import type { CreditTransaction } from '../api/client'
 import { AVATAR_SEED_POOL, dicebearUrl } from '../constants/avatars'
 import { canJoinQuiz } from '../lib/quizEvents'
 import { useApp } from '../context/AppContext'
@@ -84,6 +87,10 @@ export function ProfileScreen() {
   const [locationOpen, setLocationOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [scorePeriod, setScorePeriod] = useState<ScorePeriod>('daily')
+  const [addCreditsOpen, setAddCreditsOpen] = useState(false)
+  const [addCreditsRupees, setAddCreditsRupees] = useState('50')
+  const [addCreditsBusy, setAddCreditsBusy] = useState(false)
+  const [transactions, setTransactions] = useState<CreditTransaction[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
   const avatarChoices = useMemo(() => pickTenSeeds(), [])
 
@@ -110,6 +117,10 @@ export function ProfileScreen() {
       navigate('/auth', { replace: true })
     }
   }, [loading, user, navigate])
+
+  useEffect(() => {
+    api.fetchWalletTransactions().then(setTransactions).catch(() => {})
+  }, [user?.credits])
 
   async function onPlay() {
     try {
@@ -458,7 +469,6 @@ export function ProfileScreen() {
       <AppBottomNav
         active="profile"
         onPlay={onPlay}
-        onProfile={() => navigate('/profile')}
       />
 
       <LocationPickerSheet

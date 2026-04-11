@@ -607,7 +607,6 @@ export function HomeScreen() {
       <AppBottomNav
         active="home"
         onPlay={openFirstQuiz}
-        onProfile={() => navigate('/profile')}
       />
 
       <AnimatePresence>
