@@ -113,7 +113,7 @@ export function QuizLoadingScreen() {
         } catch {
           // credit system not available — continue anyway
         }
-        const d = await api.fetchQuiz(id)
+        const d = await api.fetchQuiz(id, clientId)
         if (cancelled) return
         setQuizMeta(d.quiz)
         setCreditReady(true)

@@ -33,7 +33,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class QuizService {
 
-  private static final int QUESTION_MS = 15_000;
+  private static final int QUESTIONS_PER_SESSION = 10;
 
   private final QuizRepository quizRepository;
   private final QuestionRepository questionRepository;
@@ -57,10 +57,10 @@ public class QuizService {
     this.feedbackService = feedbackService;
   }
 
+  // ── list ──────────────────────────────────────────────────────────────────
+
   public List<QuizDto> listQuizzes() {
-    List<Quiz> live = new ArrayList<>();
-    List<Quiz> upcoming = new ArrayList<>();
-    List<Quiz> ended = new ArrayList<>();
+    List<Quiz> live = new ArrayList<>(), upcoming = new ArrayList<>(), ended = new ArrayList<>();
     for (Quiz q : quizRepository.findAll()) {
       switch (q.getStatus()) {
         case live -> live.add(q);
@@ -68,109 +68,97 @@ public class QuizService {
         case ended -> ended.add(q);
       }
     }
-    live.sort(byStartsDesc());
-    upcoming.sort(byStartsAsc());
-    ended.sort(byStartsDesc());
-    List<Quiz> ordered = new ArrayList<>(live.size() + upcoming.size() + ended.size());
-    ordered.addAll(live);
-    ordered.addAll(upcoming);
-    ordered.addAll(ended);
+    live.sort(byStartsDesc()); upcoming.sort(byStartsAsc()); ended.sort(byStartsDesc());
+    List<Quiz> ordered = new ArrayList<>();
+    ordered.addAll(live); ordered.addAll(upcoming); ordered.addAll(ended);
     return ordered.stream().map(this::toDto).toList();
   }
 
+  // ── get quiz for user (with per-session shuffle) ──────────────────────────
+
   public QuizDetailResponse getQuizForUser(User user, String quizId, String playRef) {
-    // Soft entitlement check — only blocks if entitlement exists but is invalid
+    Quiz quiz = quizRepository.findById(quizId)
+        .orElseThrow(() -> new IllegalArgumentException("Quiz not found"));
+    assertQuizJoinable(quiz);
+
+    // Try to load existing entitlement for this session (idempotent on refresh)
+    QuizPlayEntitlement entitlement = null;
     if (playRef != null && !playRef.isBlank()) {
       try {
-        Optional<QuizPlayEntitlement> ent =
-            playEntitlementRepository.findByClientRequestId(playRef);
+        Optional<QuizPlayEntitlement> ent = playEntitlementRepository.findByClientRequestId(playRef);
         if (ent.isPresent()) {
           QuizPlayEntitlement e = ent.get();
-          if (!e.getUserId().equals(user.getId())
-              || !e.getQuizId().equals(quizId)
-              || e.getExpiresAt().isBefore(Instant.now())) {
-            throw new ResponseStatusException(
-                HttpStatus.PAYMENT_REQUIRED,
-                "No active play session for this quiz.");
+          if (!e.getUserId().equals(user.getId()) || !e.getQuizId().equals(quizId)) {
+            throw new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED, "Invalid play session.");
           }
+          if (e.getExpiresAt().isBefore(Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED, "Play session expired.");
+          }
+          entitlement = e;
         }
       } catch (ResponseStatusException rse) {
         throw rse;
-      } catch (Exception ignored) {
-        // entitlement collection not yet available — allow play
-      }
+      } catch (Exception ignored) { /* collection not yet available */ }
     }
 
-    Quiz quiz =
-        quizRepository
-            .findById(quizId)
-            .orElseThrow(() -> new IllegalArgumentException("Quiz not found"));
-    assertQuizJoinable(quiz);
-
-    List<String> qids = quiz.getQuestionIds();
-    if (qids != null && !qids.isEmpty()) {
+    // If entitlement has a stored question order → use it (same order on refresh)
+    if (entitlement != null
+        && entitlement.getQuestionOrder() != null
+        && !entitlement.getQuestionOrder().isEmpty()) {
       List<Question> ordered = new ArrayList<>();
-      for (String qid : qids) {
+      for (String qid : entitlement.getQuestionOrder()) {
         questionRepository.findById(qid).ifPresent(ordered::add);
       }
-      int take = Math.min(quiz.getQuestionCount(), ordered.size());
-      List<QuestionDto> qs =
-          ordered.subList(0, take).stream().map(this::toQuestionDto).toList();
-      return new QuizDetailResponse(toDto(quiz), qs);
+      return new QuizDetailResponse(toDto(quiz), ordered.stream().map(this::toQuestionDto).toList());
     }
 
-    List<String> cats = user.getCategories();
-    if (cats == null || cats.isEmpty()) cats = List.of();
-    List<Question> pool =
-        cats.isEmpty() ? questionRepository.findAll() : questionRepository.findByCategoryIn(cats);
-    if (pool.isEmpty()) pool = questionRepository.findAll();
-    List<Question> copy = new ArrayList<>(pool);
-    Collections.shuffle(copy, ThreadLocalRandom.current());
-    int take = Math.min(quiz.getQuestionCount(), copy.size());
-    List<QuestionDto> qs = copy.subList(0, take).stream().map(this::toQuestionDto).toList();
-    return new QuizDetailResponse(toDto(quiz), qs);
+    // Build question pool
+    List<Question> pool = buildPool(quiz, user);
+
+    // Shuffle with user-id seed so same user gets different order each new session
+    // but consistent within a session (stored in entitlement)
+    long seed = (user.getId() + quizId + System.currentTimeMillis()).hashCode();
+    Collections.shuffle(pool, new java.util.Random(seed));
+
+    int take = Math.min(QUESTIONS_PER_SESSION, pool.size());
+    List<Question> selected = new ArrayList<>(pool.subList(0, take));
+
+    // Persist the order in the entitlement so refresh returns same questions
+    if (entitlement != null) {
+      try {
+        entitlement.setQuestionOrder(selected.stream().map(Question::getId).toList());
+        playEntitlementRepository.save(entitlement);
+      } catch (Exception ignored) { /* non-critical */ }
+    }
+
+    return new QuizDetailResponse(toDto(quiz), selected.stream().map(this::toQuestionDto).toList());
   }
 
-  public SubmitAnswerResponse submitAnswer(User user, SubmitAnswerRequest req) {
-    // Soft entitlement check — allow if collection unavailable
-    try {
-      boolean hasEntitlement =
-          playEntitlementRepository
-              .findFirstByUserIdAndQuizIdAndExpiresAtAfterOrderByCreatedAtDesc(
-                  user.getId(), req.quizId(), Instant.now())
-              .isPresent();
-      if (!hasEntitlement) {
-        // Check if any entitlement exists at all (wallet system may not be active)
-        long total = playEntitlementRepository.count();
-        if (total > 0) {
-          throw new ResponseStatusException(
-              HttpStatus.PAYMENT_REQUIRED, "No active quiz session.");
-        }
-        // wallet system not active — allow submit
-      }
-    } catch (ResponseStatusException rse) {
-      throw rse;
-    } catch (Exception ignored) {
-      // entitlement collection unavailable — allow submit
-    }
+  // ── submit answer ─────────────────────────────────────────────────────────
 
-    var dup =
-        resultRepository.findByUserIdAndQuizIdAndQuestionId(
-            user.getId(), req.quizId(), req.questionId());
+  public SubmitAnswerResponse submitAnswer(User user, SubmitAnswerRequest req) {
+    // Validate active session
+    int sessionQuestionCount = validateSession(user, req.quizId());
+
+    // Prevent double-submit for same question
+    var dup = resultRepository.findByUserIdAndQuizIdAndQuestionId(
+        user.getId(), req.quizId(), req.questionId());
     if (dup.isPresent()) {
       Result r = dup.get();
-      Question qq =
-          questionRepository
-              .findById(req.questionId())
-              .orElseThrow(() -> new IllegalArgumentException("Question not found"));
+      Question qq = questionRepository.findById(req.questionId())
+          .orElseThrow(() -> new IllegalArgumentException("Question not found"));
       Integer reveal = qq.getInputType() == InputType.slider ? null : qq.getCorrectAnswerIndex();
       return new SubmitAnswerResponse(r.isCorrect(), false, 0, "Already answered", user.getTotalScore(), reveal);
     }
 
-    Question q =
-        questionRepository
-            .findById(req.questionId())
-            .orElseThrow(() -> new IllegalArgumentException("Question not found"));
+    // Prevent submitting more answers than questions in session
+    long answeredSoFar = resultRepository.countByUserIdAndQuizId(user.getId(), req.quizId());
+    if (answeredSoFar >= sessionQuestionCount) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Quiz session already completed.");
+    }
+
+    Question q = questionRepository.findById(req.questionId())
+        .orElseThrow(() -> new IllegalArgumentException("Question not found"));
 
     boolean correct = evaluate(q, req);
     int points = computePoints(correct, req.timedOut());
@@ -195,6 +183,52 @@ public class QuizService {
         correct, req.timedOut(), points, feedbackService.random(correct), saved.getTotalScore(), revealIdx);
   }
 
+  // ── helpers ───────────────────────────────────────────────────────────────
+
+  /**
+   * Validates the session is active. Returns the number of questions in this session.
+   * Soft — if entitlement collection unavailable, allows play.
+   */
+  private int validateSession(User user, String quizId) {
+    try {
+      Optional<QuizPlayEntitlement> ent =
+          playEntitlementRepository.findFirstByUserIdAndQuizIdAndExpiresAtAfterOrderByCreatedAtDesc(
+              user.getId(), quizId, Instant.now());
+      if (ent.isEmpty()) {
+        long total = playEntitlementRepository.count();
+        if (total > 0) {
+          throw new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED, "No active quiz session.");
+        }
+        return QUESTIONS_PER_SESSION; // wallet not active
+      }
+      QuizPlayEntitlement e = ent.get();
+      int count = (e.getQuestionOrder() != null && !e.getQuestionOrder().isEmpty())
+          ? e.getQuestionOrder().size()
+          : QUESTIONS_PER_SESSION;
+      return count;
+    } catch (ResponseStatusException rse) {
+      throw rse;
+    } catch (Exception ignored) {
+      return QUESTIONS_PER_SESSION; // collection unavailable
+    }
+  }
+
+  private List<Question> buildPool(Quiz quiz, User user) {
+    List<String> qids = quiz.getQuestionIds();
+    if (qids != null && !qids.isEmpty()) {
+      List<Question> list = new ArrayList<>();
+      for (String qid : qids) questionRepository.findById(qid).ifPresent(list::add);
+      if (!list.isEmpty()) return list;
+    }
+    List<String> cats = user.getCategories();
+    if (cats == null || cats.isEmpty()) cats = List.of();
+    List<Question> pool = cats.isEmpty()
+        ? questionRepository.findAll()
+        : questionRepository.findByCategoryIn(cats);
+    if (pool.isEmpty()) pool = questionRepository.findAll();
+    return new ArrayList<>(pool);
+  }
+
   private void assertQuizJoinable(Quiz quiz) {
     Instant now = Instant.now();
     if (quiz.getStatus() == QuizStatus.ended)
@@ -212,9 +246,7 @@ public class QuizService {
   }
 
   private static Comparator<Quiz> byStartsDesc() {
-    return Comparator.comparing(
-            Quiz::getStartsAt, Comparator.nullsFirst(Comparator.naturalOrder()))
-        .reversed();
+    return Comparator.comparing(Quiz::getStartsAt, Comparator.nullsFirst(Comparator.naturalOrder())).reversed();
   }
 
   private void ensurePlayedDate(User user) {
@@ -258,12 +290,10 @@ public class QuizService {
   private static boolean evaluate(Question q, SubmitAnswerRequest req) {
     if (q.getInputType() == InputType.slider) {
       if (req.sliderValue() == null || q.getCorrectNumeric() == null) return false;
-      double val = req.sliderValue();
-      double target = q.getCorrectNumeric();
+      double val = req.sliderValue(), target = q.getCorrectNumeric();
       double min = Double.parseDouble(q.getOptions().get(0));
       double max = Double.parseDouble(q.getOptions().get(1));
-      double range = Math.abs(max - min);
-      double tol = Math.max(range * 0.05, 1.0);
+      double tol = Math.max(Math.abs(max - min) * 0.05, 1.0);
       return Math.abs(val - target) <= tol;
     }
     if (req.answerIndex() == null || q.getCorrectAnswerIndex() == null) return false;
@@ -276,15 +306,13 @@ public class QuizService {
   }
 
   private QuizDto toDto(Quiz q) {
-    return new QuizDto(
-        q.getId(), q.getTitle(), q.getDescription(), q.getStatus(),
+    return new QuizDto(q.getId(), q.getTitle(), q.getDescription(), q.getStatus(),
         q.getStartsAt(), q.getEndsAt(), q.getQuestionCount(),
         q.getReferenceDocumentUrl(), q.getReferenceDocumentName());
   }
 
   private QuestionDto toQuestionDto(Question q) {
-    return new QuestionDto(
-        q.getId(), q.getQuestionText(), q.getMediaUrl(), q.getMediaType(),
+    return new QuestionDto(q.getId(), q.getQuestionText(), q.getMediaUrl(), q.getMediaType(),
         q.getInputType(), q.getOptions(), q.getCategory(), q.getDocumentReference());
   }
 }

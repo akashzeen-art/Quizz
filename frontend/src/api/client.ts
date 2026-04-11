@@ -413,6 +413,11 @@ export async function fetchQuizList() {
   return Array.isArray(data) ? data.map(normalizeQuiz) : []
 }
 
+export async function fetchAnsweredQuestionIds(quizId: string): Promise<string[]> {
+  const { data } = await api.get<string[]>(`/quiz/${quizId}/answered`)
+  return Array.isArray(data) ? data : []
+}
+
 export async function fetchQuiz(id: string, playRef?: string) {
   const { data } = await api.get<Record<string, unknown>>(`/quiz/${id}`, {
     headers: playRef ? { 'X-Quiz-Play-Ref': playRef } : {},

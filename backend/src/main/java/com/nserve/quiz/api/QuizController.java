@@ -7,6 +7,7 @@ import com.nserve.quiz.dto.QuizDetailResponse;
 import com.nserve.quiz.dto.QuizDto;
 import com.nserve.quiz.dto.SubmitAnswerRequest;
 import com.nserve.quiz.dto.SubmitAnswerResponse;
+import com.nserve.quiz.repo.ResultRepository;
 import com.nserve.quiz.security.CurrentUser;
 import com.nserve.quiz.service.QuizService;
 import com.nserve.quiz.service.WalletService;
@@ -25,15 +26,25 @@ public class QuizController {
 
   private final QuizService quizService;
   private final WalletService walletService;
+  private final ResultRepository resultRepository;
 
-  public QuizController(QuizService quizService, WalletService walletService) {
+  public QuizController(QuizService quizService, WalletService walletService, ResultRepository resultRepository) {
     this.quizService = quizService;
     this.walletService = walletService;
+    this.resultRepository = resultRepository;
   }
 
   @GetMapping("/quiz/list")
   public List<QuizDto> list() {
     return quizService.listQuizzes();
+  }
+
+  @GetMapping("/quiz/{id}/answered")
+  public List<String> answeredQuestionIds(
+      @RequestAttribute(CurrentUser.ATTR) User user,
+      @PathVariable String id) {
+    return resultRepository.findByUserIdAndQuizId(user.getId(), id)
+        .stream().map(r -> r.getQuestionId()).toList();
   }
 
   @GetMapping("/quiz/{id}")
