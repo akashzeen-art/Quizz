@@ -28,7 +28,7 @@ type ResultState = {
 export function QuizPlayScreen() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { refreshProfile } = useApp()
+  const { refreshProfile, setUser } = useApp()
 
   const [loading, setLoading]         = useState(true)
   const [quizMeta, setQuizMeta]       = useState<QuizDto | null>(null)
@@ -129,12 +129,29 @@ export function QuizPlayScreen() {
       setSessionScore((s) => Math.max(0, s + pts))
       if (res.correct) setCorrectCount((c) => c + 1)
       else if (!timedOut) setWrongCount((c) => c + 1)
-      await refreshProfile()
+
+      // Optimistically update user scores in context immediately
+      if (pts !== 0) {
+        setUser((prev) => {
+          if (!prev) return prev
+          const add = (v: number) => Math.max(0, v + pts)
+          return {
+            ...prev,
+            totalScore:   add(prev.totalScore),
+            weeklyScore:  add(prev.weeklyScore),
+            monthlyScore: add(prev.monthlyScore),
+            dayScore:     add(prev.dayScore),
+            points:       add(prev.points),
+          }
+        })
+      }
+      // Sync real value from backend in background
+      void refreshProfile()
     } catch {
       toast.error('Submit failed')
       setFrozen(false)
     }
-  }, [id, q, frozen, refreshProfile])
+  }, [id, q, frozen, refreshProfile, setUser])
 
   // ── countdown timer ────────────────────────────────────────────────────────
   useEffect(() => {
