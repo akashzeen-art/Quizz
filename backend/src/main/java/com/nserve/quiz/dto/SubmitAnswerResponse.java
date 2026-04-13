@@ -6,4 +6,6 @@ public record SubmitAnswerResponse(
     int pointsEarned,
     String feedbackMessage,
     int totalScore,
-    Integer correctAnswerIndex) {}
+    Integer correctAnswerIndex,
+    boolean boosterActive,
+    boolean boosterJustActivated) {}

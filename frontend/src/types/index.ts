@@ -81,4 +81,6 @@ export interface SubmitAnswerResponse {
   feedbackMessage: string
   totalScore: number
   correctAnswerIndex?: number | null
+  boosterActive: boolean
+  boosterJustActivated: boolean
 }

@@ -12,6 +12,7 @@ import { QuizSounds } from './QuizSounds'
 import { QuizFeedbackBanner } from './QuizFeedbackBanner'
 import { QuizEndScreen } from './QuizEndScreen'
 import { OptionTile, MediaBlock, NEUTRAL_TILES, optionVisualState } from './QuizOptionTile'
+import { BoosterBanner } from './BoosterBanner'
 
 const QUESTION_SEC = 15
 
@@ -42,6 +43,9 @@ export function QuizPlayScreen() {
   const [correctCount, setCorrectCount] = useState(0)
   const [wrongCount, setWrongCount]     = useState(0)
   const [sliderVal, setSliderVal]     = useState(50)
+  const [boosterActive, setBoosterActive] = useState(false)
+  const [boosterJustActivated, setBoosterJustActivated] = useState(false)
+  const [boosterSecsLeft, setBoosterSecsLeft] = useState(0)
 
   const sliderRef          = useRef(sliderVal)
   const questionStartedAt  = useRef(Date.now())
@@ -107,8 +111,16 @@ export function QuizPlayScreen() {
       const res = await api.submitAnswer({ quizId: id, questionId: q.id, answerIndex, sliderValue, timeMs, timedOut })
       const bundle = randomFeedbackBundle(res.correct)
 
-      // compute points — +10 correct, -2 wrong, 0 timeout
-      const pts = timedOut ? 0 : res.correct ? 10 : -2
+      // compute points — +10 correct, -2 wrong, 0 timeout; x2 if booster active
+      const basePts = timedOut ? 0 : res.correct ? 10 : -2
+      const pts = (res.boosterActive && basePts > 0) ? basePts * 2 : basePts
+
+      // Update booster state
+      setBoosterActive(res.boosterActive || res.boosterJustActivated)
+      if (res.boosterJustActivated) {
+        setBoosterJustActivated(true)
+        setTimeout(() => setBoosterJustActivated(false), 100)
+      }
 
       // play sound
       if (!timedOut) {
@@ -232,6 +244,9 @@ export function QuizPlayScreen() {
   return (
     <div className={`app-screen relative min-h-[100dvh] pb-36 ${revealed ? 'pt-36' : ''}`}>
 
+      {/* ── booster banner ── */}
+      <BoosterBanner active={boosterActive} justActivated={boosterJustActivated} secondsLeft={boosterSecsLeft} />
+
       {/* ── feedback banners ── */}
       <QuizFeedbackBanner
         correct={result ? result.correct : null}
@@ -276,7 +291,7 @@ export function QuizPlayScreen() {
                     : 'bg-rose-100 text-rose-700 ring-1 ring-rose-300'
               }`}
             >
-              {result.timedOut ? '⏱ 0' : result.correct ? `+${result.points}` : `−2`}
+              {result.timedOut ? '⏱ 0' : result.correct ? `+${result.points}${boosterActive ? ' ×2' : ''}` : `−2`}
             </motion.span>
           )}
           <div className="flex items-center gap-1 rounded-full bg-violet-600 px-2.5 py-1 text-xs font-bold tabular-nums text-white">

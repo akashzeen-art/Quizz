@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+import com.nserve.quiz.service.BoosterService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -41,6 +42,7 @@ public class QuizService {
   private final UserRepository userRepository;
   private final QuizPlayEntitlementRepository playEntitlementRepository;
   private final FeedbackService feedbackService;
+  private final BoosterService boosterService;
 
   public QuizService(
       QuizRepository quizRepository,
@@ -48,13 +50,15 @@ public class QuizService {
       ResultRepository resultRepository,
       UserRepository userRepository,
       QuizPlayEntitlementRepository playEntitlementRepository,
-      FeedbackService feedbackService) {
+      FeedbackService feedbackService,
+      BoosterService boosterService) {
     this.quizRepository = quizRepository;
     this.questionRepository = questionRepository;
     this.resultRepository = resultRepository;
     this.userRepository = userRepository;
     this.playEntitlementRepository = playEntitlementRepository;
     this.feedbackService = feedbackService;
+    this.boosterService = boosterService;
   }
 
   public java.util.Optional<QuizPlayEntitlement> findEntitlementByRef(String playRef, String userId, String quizId) {
@@ -158,7 +162,7 @@ public class QuizService {
       Question qq = questionRepository.findById(req.questionId())
           .orElseThrow(() -> new IllegalArgumentException("Question not found"));
       Integer reveal = qq.getInputType() == InputType.slider ? null : qq.getCorrectAnswerIndex();
-      return new SubmitAnswerResponse(r.isCorrect(), false, 0, "Already answered", user.getTotalScore(), reveal);
+      return new SubmitAnswerResponse(r.isCorrect(), false, 0, "Already answered", user.getTotalScore(), reveal, boosterService.isBoosterActive(user), false);
     }
 
     // Prevent submitting more answers than questions in session
@@ -171,7 +175,14 @@ public class QuizService {
         .orElseThrow(() -> new IllegalArgumentException("Question not found"));
 
     boolean correct = evaluate(q, req);
-    int points = computePoints(correct, req.timedOut());
+    int basePoints = computePoints(correct, req.timedOut());
+
+    // Apply 2x booster if active
+    boolean boosterActive = boosterService.isBoosterActive(user);
+    int points = (boosterActive && basePoints > 0) ? basePoints * 2 : basePoints;
+
+    // Evaluate booster triggers for next question
+    boolean boosterJustActivated = boosterService.evaluateAndActivate(user, correct, req.timedOut());
 
     Result row = new Result();
     row.setUserId(user.getId());
@@ -191,7 +202,8 @@ public class QuizService {
     User saved = userRepository.findById(user.getId()).orElse(user);
     Integer revealIdx = q.getInputType() == InputType.slider ? null : q.getCorrectAnswerIndex();
     return new SubmitAnswerResponse(
-        correct, req.timedOut(), points, feedbackService.random(correct), saved.getTotalScore(), revealIdx);
+        correct, req.timedOut(), points, feedbackService.random(correct), saved.getTotalScore(), revealIdx,
+        boosterService.isBoosterActive(saved), boosterJustActivated);
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────
