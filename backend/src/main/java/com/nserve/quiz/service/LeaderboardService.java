@@ -20,17 +20,21 @@ public class LeaderboardService {
 
   private final UserRepository userRepository;
   private final ResultRepository resultRepository;
+  private final DummyParticipantService dummyService;
 
-  public LeaderboardService(UserRepository userRepository, ResultRepository resultRepository) {
+  public LeaderboardService(
+      UserRepository userRepository,
+      ResultRepository resultRepository,
+      DummyParticipantService dummyService) {
     this.userRepository = userRepository;
     this.resultRepository = resultRepository;
+    this.dummyService = dummyService;
   }
 
   /** Global leaderboard — total / weekly / monthly / daily / points */
-  public List<LeaderboardEntryDto> leaderboard(String sort) {
+  public List<LeaderboardEntryDto> leaderboard(String sort, String currentUserId) {
     String key = sort == null ? "total" : sort.trim().toLowerCase(Locale.ROOT);
 
-    // For daily sort we need dayScore; tiebreaker = lower totalTimeMs wins
     Comparator<User> cmp = switch (key) {
       case "weekly"  -> Comparator.comparingInt(User::getWeeklyScore).reversed();
       case "monthly" -> Comparator.comparingInt(User::getMonthlyScore).reversed();
@@ -48,15 +52,19 @@ public class LeaderboardService {
       if (rank > MAX_ROWS) break;
       out.add(toEntry(rank++, u, 0L));
     }
+
+    // Inject dummies when real users are few
+    if (currentUserId != null) {
+      out = dummyService.fill(out, currentUserId, key);
+    }
     return out;
   }
 
   /** Per-quiz leaderboard — ranked by quiz score, tiebreaker = fastest total time */
-  public List<LeaderboardEntryDto> quizLeaderboard(String quizId) {
+  public List<LeaderboardEntryDto> quizLeaderboard(String quizId, String currentUserId) {
     List<Result> results = resultRepository.findByQuizId(quizId);
 
-    // Aggregate per user: totalScore and totalTimeMs
-    Map<String, long[]> agg = new HashMap<>(); // userId -> [score, timeMs]
+    Map<String, long[]> agg = new HashMap<>();
     for (Result r : results) {
       agg.compute(r.getUserId(), (uid, prev) -> {
         long[] v = prev == null ? new long[]{0, 0} : prev;
@@ -66,16 +74,14 @@ public class LeaderboardService {
       });
     }
 
-    // Build user map
     Map<String, User> userMap = new HashMap<>();
     for (User u : userRepository.findAll()) userMap.put(u.getId(), u);
 
-    // Sort: higher score first, then lower time (faster)
     List<Map.Entry<String, long[]>> sorted = new ArrayList<>(agg.entrySet());
     sorted.sort((a, b) -> {
       int scoreCmp = Long.compare(b.getValue()[0], a.getValue()[0]);
       if (scoreCmp != 0) return scoreCmp;
-      return Long.compare(a.getValue()[1], b.getValue()[1]); // faster wins
+      return Long.compare(a.getValue()[1], b.getValue()[1]);
     });
 
     List<LeaderboardEntryDto> out = new ArrayList<>();
@@ -86,16 +92,20 @@ public class LeaderboardService {
       if (u == null) continue;
       out.add(toEntry(rank++, u, e.getValue()[1]));
     }
+
+    if (currentUserId != null) {
+      out = dummyService.fill(out, currentUserId, "total");
+    }
     return out;
   }
 
-  /** Instant rank for a user on a given sort after quiz completion */
+  /** Instant rank for a user */
   public int myRank(String userId, String sort) {
-    List<LeaderboardEntryDto> board = leaderboard(sort);
+    List<LeaderboardEntryDto> board = leaderboard(sort, userId);
     for (LeaderboardEntryDto e : board) {
       if (e.userId().equals(userId)) return e.rank();
     }
-    return board.size() + 1; // outside top 100
+    return board.size() + 1;
   }
 
   private LeaderboardEntryDto toEntry(int rank, User u, long totalTimeMs) {
@@ -108,6 +118,7 @@ public class LeaderboardService {
         u.getMonthlyScore(),
         u.getDayScore(),
         u.getPoints(),
-        totalTimeMs);
+        totalTimeMs,
+        false);
   }
 }

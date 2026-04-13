@@ -472,6 +472,7 @@ function normalizeLeaderboardEntry(raw: unknown): LeaderboardEntryDto {
     dayScore: num('dayScore') ?? 0,
     points: num('points') ?? 0,
     totalTimeMs: num('totalTimeMs') ?? 0,
+    dummy: r.dummy === true,
   }
 }
 

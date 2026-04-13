@@ -21,20 +21,20 @@ public class LeaderboardController {
     this.leaderboardService = leaderboardService;
   }
 
-  /** Global leaderboard: ?sort=total|weekly|monthly|daily|points */
   @GetMapping("/leaderboard")
   public List<LeaderboardEntryDto> leaderboard(
+      @RequestAttribute(CurrentUser.ATTR) User user,
       @RequestParam(defaultValue = "total") String sort) {
-    return leaderboardService.leaderboard(sort);
+    return leaderboardService.leaderboard(sort, user.getId());
   }
 
-  /** Per-quiz leaderboard ranked by quiz score + tiebreaker on time */
   @GetMapping("/leaderboard/quiz/{quizId}")
-  public List<LeaderboardEntryDto> quizLeaderboard(@PathVariable String quizId) {
-    return leaderboardService.quizLeaderboard(quizId);
+  public List<LeaderboardEntryDto> quizLeaderboard(
+      @RequestAttribute(CurrentUser.ATTR) User user,
+      @PathVariable String quizId) {
+    return leaderboardService.quizLeaderboard(quizId, user.getId());
   }
 
-  /** Instant rank for the logged-in user */
   @GetMapping("/leaderboard/my-rank")
   public Map<String, Integer> myRank(
       @RequestAttribute(CurrentUser.ATTR) User user,

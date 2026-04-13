@@ -71,6 +71,7 @@ export interface LeaderboardEntryDto {
   dayScore: number
   points: number
   totalTimeMs: number
+  dummy: boolean
 }
 
 export interface SubmitAnswerResponse {

@@ -12,4 +12,5 @@ public record LeaderboardEntryDto(
     int monthlyScore,
     int dayScore,
     int points,
-    long totalTimeMs) {}
+    long totalTimeMs,
+    boolean dummy) {}
