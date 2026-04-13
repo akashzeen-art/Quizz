@@ -207,7 +207,7 @@ export function QuizLoadingScreen() {
             <div className="flex flex-col items-center">
               <p className="text-5xl font-extrabold tabular-nums text-white drop-shadow-lg">{sec}</p>
               <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-white/70">
-                Starting soon
+                {/* Starting soon */}
               </p>
             </div>
           </div>

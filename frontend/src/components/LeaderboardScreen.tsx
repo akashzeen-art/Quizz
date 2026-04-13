@@ -74,13 +74,20 @@ export function LeaderboardScreen() {
     void load()
   }, [load])
 
-  // party popper effect when arriving from quiz
+  // Refresh when user returns to this tab
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void load(true)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [load])
+
+  // party popper effect when arriving from quiz + reload scores
   useEffect(() => {
     if (!fromQuiz?.fromQuiz) return
     const colors = ['#7c3aed', '#f59e0b', '#10b981', '#f43f5e', '#3b82f6', '#ec4899']
-    // initial big burst
     confetti({ particleCount: 120, spread: 100, origin: { y: 0.5 }, colors })
-    // side cannons
     const end = Date.now() + 2500
     const cannon = () => {
       confetti({ particleCount: 10, angle: 60, spread: 65, origin: { x: 0 }, colors })
@@ -88,6 +95,9 @@ export function LeaderboardScreen() {
       if (Date.now() < end) requestAnimationFrame(cannon)
     }
     setTimeout(() => requestAnimationFrame(cannon), 300)
+    // Reload leaderboard after a short delay so backend scores are settled
+    const t = setTimeout(() => void load(true), 1500)
+    return () => clearTimeout(t)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
