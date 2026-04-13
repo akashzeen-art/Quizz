@@ -64,19 +64,14 @@ export function QuizPlayScreen() {
             toast.error('No questions for your categories')
           } else {
             // Anti-cheat: skip to first unanswered question on refresh
-            try {
-              const answered = await api.fetchAnsweredQuestionIds(id)
-              if (!cancelled && answered.length > 0) {
-                const firstUnanswered = detail.questions.findIndex(
-                  (q) => !answered.includes(q.id)
-                )
-                if (firstUnanswered > 0) setIndex(firstUnanswered)
-                else if (firstUnanswered === -1) {
-                  // all answered — go straight to end
-                  setShowEndCard(true)
-                }
-              }
-            } catch { /* non-critical */ }
+            const answered = await api.fetchAnsweredQuestionIds(id)
+            if (!cancelled && answered.length > 0) {
+              const firstUnanswered = detail.questions.findIndex(
+                (q) => !answered.includes(q.id)
+              )
+              if (firstUnanswered > 0) setIndex(firstUnanswered)
+              else if (firstUnanswered === -1) setShowEndCard(true)
+            }
           }
         }
       } catch (e) {

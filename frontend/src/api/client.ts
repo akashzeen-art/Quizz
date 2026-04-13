@@ -414,8 +414,13 @@ export async function fetchQuizList() {
 }
 
 export async function fetchAnsweredQuestionIds(quizId: string): Promise<string[]> {
-  const { data } = await api.get<string[]>(`/quiz/${quizId}/answered`)
-  return Array.isArray(data) ? data : []
+  try {
+    const { data } = await api.get<string[]>(`/quiz/${quizId}/answered`)
+    return Array.isArray(data) ? data : []
+  } catch {
+    // endpoint not available on older backend — return empty (non-critical)
+    return []
+  }
 }
 
 export async function fetchQuiz(id: string, playRef?: string) {

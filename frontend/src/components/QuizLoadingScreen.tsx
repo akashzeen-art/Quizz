@@ -101,9 +101,9 @@ export function QuizLoadingScreen() {
     let cancelled = false
     ;(async () => {
       try {
+        const clientId = api.getQuizPlayClientId(id)
         // Try credit deduction; if backend doesn't support it yet, fall through
         try {
-          const clientId = api.getQuizPlayClientId(id)
           const bal = await api.deductQuizCredits(id, clientId)
           if (!cancelled) {
             setUser((prev) =>
