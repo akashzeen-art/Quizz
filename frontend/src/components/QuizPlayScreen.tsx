@@ -62,16 +62,6 @@ export function QuizPlayScreen() {
           setQuestions(detail.questions)
           if (detail.questions.length === 0) {
             toast.error('No questions for your categories')
-          } else {
-            // Anti-cheat: skip to first unanswered question on refresh
-            const answered = await api.fetchAnsweredQuestionIds(id)
-            if (!cancelled && answered.length > 0) {
-              const firstUnanswered = detail.questions.findIndex(
-                (q) => !answered.includes(q.id)
-              )
-              if (firstUnanswered > 0) setIndex(firstUnanswered)
-              else if (firstUnanswered === -1) setShowEndCard(true)
-            }
           }
         }
       } catch (e) {
@@ -324,7 +314,7 @@ export function QuizPlayScreen() {
             <div className="grid grid-cols-2 gap-3">
               {[0, 1, 2, 3].map((i) => (
                 <OptionTile key={i} label={q.options[i] ?? '—'} idleClass={NEUTRAL_TILES[i % 4]}
-                  visual={optionVisualState(i, correctIdx, result?.selectedIndex, revealed)}
+                  visual={optionVisualState(i, correctIdx, result?.selectedIndex, revealed, result?.timedOut ?? false)}
                   disabled={revealed} onClick={() => onPick(i)} />
               ))}
             </div>
@@ -332,7 +322,7 @@ export function QuizPlayScreen() {
             <div className="grid grid-cols-2 gap-3">
               {[0, 1].map((i) => (
                 <OptionTile key={i} label={q.options[i] ?? '—'} idleClass={NEUTRAL_TILES[i % 2]}
-                  visual={optionVisualState(i, correctIdx, result?.selectedIndex, revealed)}
+                  visual={optionVisualState(i, correctIdx, result?.selectedIndex, revealed, result?.timedOut ?? false)}
                   disabled={revealed} large={q.inputType === 'binary'} onClick={() => onPick(i)} />
               ))}
             </div>
@@ -340,7 +330,7 @@ export function QuizPlayScreen() {
             <div className="space-y-3">
               {[0, 1, 2].map((i) => (
                 <OptionTile key={i} label={q.options[i] ?? '—'} idleClass={NEUTRAL_TILES[i % 4]}
-                  visual={optionVisualState(i, correctIdx, result?.selectedIndex, revealed)}
+                  visual={optionVisualState(i, correctIdx, result?.selectedIndex, revealed, result?.timedOut ?? false)}
                   disabled={revealed} burgerStyle onClick={() => onPick(i)} />
               ))}
             </div>

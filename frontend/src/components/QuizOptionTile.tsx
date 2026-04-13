@@ -9,10 +9,13 @@ export function optionVisualState(
   correctIdx: number | null | undefined,
   selectedIdx: number | undefined,
   revealed: boolean,
+  timedOut: boolean,
 ): OptionVisualState {
   if (!revealed || correctIdx === undefined || correctIdx === null) return 'idle'
+  // Always highlight the correct answer after reveal (including timeout)
   if (correctIdx === i) return 'correct'
-  if (selectedIdx === i) return 'wrongPick'
+  // Only highlight wrong pick if user actually selected this tile (not timeout)
+  if (!timedOut && selectedIdx === i) return 'wrongPick'
   return 'dim'
 }
 

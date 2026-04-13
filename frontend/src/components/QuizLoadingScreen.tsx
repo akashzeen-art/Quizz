@@ -98,6 +98,8 @@ export function QuizLoadingScreen() {
 
   useEffect(() => {
     if (!id) return
+    // Always clear old session key so each quiz start gets a fresh clientId
+    api.clearQuizPlayClientId(id)
     let cancelled = false
     ;(async () => {
       try {

@@ -42,9 +42,27 @@ public class QuizController {
   @GetMapping("/quiz/{id}/answered")
   public List<String> answeredQuestionIds(
       @RequestAttribute(CurrentUser.ATTR) User user,
-      @PathVariable String id) {
-    return resultRepository.findByUserIdAndQuizId(user.getId(), id)
-        .stream().map(r -> r.getQuestionId()).toList();
+      @PathVariable String id,
+      @RequestHeader(value = "X-Quiz-Play-Ref", required = false) String playRef) {
+    // Only return answers from the current active session
+    // If no active entitlement found, return empty (new session)
+    try {
+      var ent = playRef != null && !playRef.isBlank()
+          ? quizService.findEntitlementByRef(playRef, user.getId(), id)
+          : java.util.Optional.<com.nserve.quiz.domain.QuizPlayEntitlement>empty();
+      if (ent.isEmpty()) return java.util.List.of();
+      var order = ent.get().getQuestionOrder();
+      if (order == null || order.isEmpty()) return java.util.List.of();
+      // Return only answered IDs that belong to this session's question set
+      var sessionSet = new java.util.HashSet<>(order);
+      return resultRepository.findByUserIdAndQuizId(user.getId(), id)
+          .stream()
+          .map(r -> r.getQuestionId())
+          .filter(sessionSet::contains)
+          .toList();
+    } catch (Exception e) {
+      return java.util.List.of();
+    }
   }
 
   @GetMapping("/quiz/{id}")

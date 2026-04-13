@@ -413,12 +413,13 @@ export async function fetchQuizList() {
   return Array.isArray(data) ? data.map(normalizeQuiz) : []
 }
 
-export async function fetchAnsweredQuestionIds(quizId: string): Promise<string[]> {
+export async function fetchAnsweredQuestionIds(quizId: string, playRef?: string): Promise<string[]> {
   try {
-    const { data } = await api.get<string[]>(`/quiz/${quizId}/answered`)
+    const { data } = await api.get<string[]>(`/quiz/${quizId}/answered`, {
+      headers: playRef ? { 'X-Quiz-Play-Ref': playRef } : {},
+    })
     return Array.isArray(data) ? data : []
   } catch {
-    // endpoint not available on older backend — return empty (non-critical)
     return []
   }
 }

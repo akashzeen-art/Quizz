@@ -57,6 +57,16 @@ public class QuizService {
     this.feedbackService = feedbackService;
   }
 
+  public java.util.Optional<QuizPlayEntitlement> findEntitlementByRef(String playRef, String userId, String quizId) {
+    try {
+      return playEntitlementRepository.findByClientRequestId(playRef)
+          .filter(e -> e.getUserId().equals(userId) && e.getQuizId().equals(quizId)
+              && e.getExpiresAt().isAfter(Instant.now()));
+    } catch (Exception ignored) {
+      return java.util.Optional.empty();
+    }
+  }
+
   // ── list ──────────────────────────────────────────────────────────────────
 
   public List<QuizDto> listQuizzes() {

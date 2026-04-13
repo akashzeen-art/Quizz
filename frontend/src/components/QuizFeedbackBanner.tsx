@@ -61,8 +61,8 @@ const SLIDE  = { y: -140, opacity: 0 }
 
 export function QuizFeedbackBanner({ correct, timedOut, points, msg, effectId }: Props) {
   const show = correct !== null
-
-  const correctFx = correct && !timedOut ? getCorrectEffect(effectId) : null
+  // timedOut takes priority — never show wrong banner on timeout
+  const correctFx = correct === true && !timedOut ? getCorrectEffect(effectId) : null
   const wrongFx   = correct === false && !timedOut ? getWrongEffect(effectId) : null
 
   return (
