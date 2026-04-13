@@ -173,6 +173,15 @@ export function HomeScreen() {
     return () => window.cancelAnimationFrame(raf)
   }, [categoryPills])
 
+  // Refresh scores every time user returns to this screen (tab focus or navigation)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refreshProfile()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [refreshProfile])
+
   const invitePrimaryLabel =
     typeof navigator !== 'undefined' &&
     typeof navigator.share === 'function'
@@ -245,6 +254,7 @@ export function HomeScreen() {
           setQuizzes(q)
           setLeaderboard(lb)
         }
+        void refreshProfile()
       } catch {
         if (!cancelled) toast.error('Could not load quizzes')
       }

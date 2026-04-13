@@ -4,6 +4,7 @@ import { Sparkles, Star } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as api from '../api/client'
+import { useApp } from '../context/AppContext'
 
 type Props = {
   quizId: string
@@ -50,6 +51,7 @@ function CountUp({ target, delay = 0 }: { target: number; delay?: number }) {
 
 export function QuizEndScreen({ quizId, sessionScore, correctCount, wrongCount, totalQuestions }: Props) {
   const navigate = useNavigate()
+  const { refreshProfile } = useApp()
   const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0
   const stars = accuracy === 100 ? 3 : accuracy >= 60 ? 2 : accuracy >= 30 ? 1 : 0
   const [countdown, setCountdown] = useState(REDIRECT_SEC)
@@ -65,6 +67,7 @@ export function QuizEndScreen({ quizId, sessionScore, correctCount, wrongCount, 
     if (redirected.current) return
     redirected.current = true
     api.clearQuizPlayClientId(quizId)
+    void refreshProfile()
     navigate('/leaderboard', {
       replace: true,
       state: { fromQuiz: true, score: sessionScore, correct: correctCount, total: totalQuestions },
@@ -225,7 +228,7 @@ export function QuizEndScreen({ quizId, sessionScore, correctCount, wrongCount, 
           </button>
           <button type="button"
             className="w-full rounded-2xl border border-slate-200 bg-white/80 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-            onClick={() => { redirected.current = true; api.clearQuizPlayClientId(quizId); navigate('/home', { replace: true }) }}>
+            onClick={() => { redirected.current = true; api.clearQuizPlayClientId(quizId); void refreshProfile(); navigate('/home', { replace: true }) }}>
             Back to home
           </button>
         </motion.div>
