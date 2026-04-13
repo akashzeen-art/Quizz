@@ -180,6 +180,7 @@ public class QuizService {
     row.setCorrect(correct);
     row.setTimedOut(req.timedOut());
     row.setPointsEarned(points);
+    row.setTimeMs(req.timeMs());
     row.setAnsweredAt(Instant.now());
     resultRepository.save(row);
 

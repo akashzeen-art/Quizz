@@ -17,6 +17,7 @@ public class Result {
   private boolean correct;
   private boolean timedOut;
   private int pointsEarned;
+  private long timeMs;
   private Instant answeredAt;
 
   public Result() {}
@@ -58,13 +59,10 @@ public class Result {
   public boolean isTimedOut() { return timedOut; }
   public void setTimedOut(boolean timedOut) { this.timedOut = timedOut; }
 
-  public int getPointsEarned() {
-    return pointsEarned;
-  }
-
-  public void setPointsEarned(int pointsEarned) {
-    this.pointsEarned = pointsEarned;
-  }
+  public int getPointsEarned() { return pointsEarned; }
+  public void setPointsEarned(int pointsEarned) { this.pointsEarned = pointsEarned; }
+  public long getTimeMs() { return timeMs; }
+  public void setTimeMs(long timeMs) { this.timeMs = timeMs; }
 
   public Instant getAnsweredAt() {
     return answeredAt;

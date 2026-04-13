@@ -456,8 +456,7 @@ export async function submitAnswer(body: {
 /** Backend may omit fields or return legacy `{ score }` only — coerce so UI never sees undefined. */
 function normalizeLeaderboardEntry(raw: unknown): LeaderboardEntryDto {
   const r = raw as Record<string, unknown>
-  const legacy =
-    typeof r.score === 'number' ? (r.score as number) : undefined
+  const legacy = typeof r.score === 'number' ? (r.score as number) : undefined
   const num = (k: string) => {
     const v = r[k]
     return typeof v === 'number' && !Number.isNaN(v) ? v : undefined
@@ -470,13 +469,27 @@ function normalizeLeaderboardEntry(raw: unknown): LeaderboardEntryDto {
     totalScore: total,
     weeklyScore: num('weeklyScore') ?? 0,
     monthlyScore: num('monthlyScore') ?? 0,
+    dayScore: num('dayScore') ?? 0,
     points: num('points') ?? 0,
+    totalTimeMs: num('totalTimeMs') ?? 0,
   }
 }
 
 export async function fetchLeaderboard(sort: LeaderboardSort = 'total') {
-  const { data } = await api.get<unknown[]>('/leaderboard', {
-    params: { sort },
-  })
+  const { data } = await api.get<unknown[]>('/leaderboard', { params: { sort } })
   return Array.isArray(data) ? data.map(normalizeLeaderboardEntry) : []
+}
+
+export async function fetchQuizLeaderboard(quizId: string) {
+  const { data } = await api.get<unknown[]>(`/leaderboard/quiz/${quizId}`)
+  return Array.isArray(data) ? data.map(normalizeLeaderboardEntry) : []
+}
+
+export async function fetchMyRank(sort: LeaderboardSort = 'total'): Promise<number> {
+  try {
+    const { data } = await api.get<{ rank: number }>('/leaderboard/my-rank', { params: { sort } })
+    return data.rank
+  } catch {
+    return 0
+  }
 }

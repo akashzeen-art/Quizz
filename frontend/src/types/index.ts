@@ -59,7 +59,7 @@ export interface UserProfileDto {
   profileUpdatedAt?: string
 }
 
-export type LeaderboardSort = 'total' | 'weekly' | 'monthly' | 'points'
+export type LeaderboardSort = 'total' | 'weekly' | 'monthly' | 'daily' | 'points'
 
 export interface LeaderboardEntryDto {
   rank: number
@@ -68,7 +68,9 @@ export interface LeaderboardEntryDto {
   totalScore: number
   weeklyScore: number
   monthlyScore: number
+  dayScore: number
   points: number
+  totalTimeMs: number
 }
 
 export interface SubmitAnswerResponse {

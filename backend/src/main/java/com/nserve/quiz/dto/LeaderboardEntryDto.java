@@ -10,4 +10,6 @@ public record LeaderboardEntryDto(
     int totalScore,
     int weeklyScore,
     int monthlyScore,
-    int points) {}
+    int dayScore,
+    int points,
+    long totalTimeMs) {}

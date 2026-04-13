@@ -6,15 +6,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Coins,
-  Copy,
-  Gift,
   HelpCircle,
   History,
   LifeBuoy,
-  Loader2,
   MapPin,
   Menu,
-  Share2,
   SlidersHorizontal,
   Sparkles,
   User,
@@ -72,7 +68,6 @@ export function HomeScreen() {
   const [addCreditsOpen, setAddCreditsOpen] = useState(false)
   const [addCreditsRupees, setAddCreditsRupees] = useState('50')
   const [addCreditsBusy, setAddCreditsBusy] = useState(false)
-  const [inviteBusy, setInviteBusy] = useState(false)
   const [quizzes, setQuizzes] = useState<QuizDto[] | null>(null)
   const [leaderboard, setLeaderboard] = useState<
     Awaited<ReturnType<typeof api.fetchLeaderboard>> | null
@@ -181,66 +176,6 @@ export function HomeScreen() {
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [refreshProfile])
-
-  const invitePrimaryLabel =
-    typeof navigator !== 'undefined' &&
-    typeof navigator.share === 'function'
-      ? 'Share invite'
-      : 'Get invite link'
-
-  /** Personal signup link so invites can be attributed (add backend handling for `ref` later). */
-  const referralUrl = useMemo(() => {
-    if (!user?.id) return ''
-    try {
-      const u = new URL(`${window.location.origin}/auth`)
-      u.searchParams.set('ref', user.id)
-      return u.toString()
-    } catch {
-      return ''
-    }
-  }, [user?.id])
-
-  async function shareInviteLink() {
-    if (!referralUrl) {
-      toast.error('Sign in to get your invite link')
-      return
-    }
-    setInviteBusy(true)
-    try {
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title: 'Join me on the quiz',
-            text: 'Skill-based quizzes and leaderboards — sign up with my link.',
-            url: referralUrl,
-          })
-          toast.success('Thanks for sharing!')
-          return
-        } catch (e) {
-          if ((e as Error).name === 'AbortError') return
-        }
-      }
-      await navigator.clipboard.writeText(referralUrl)
-      toast.success('Invite link copied to clipboard')
-    } catch {
-      toast.error('Could not share or copy the link')
-    } finally {
-      setInviteBusy(false)
-    }
-  }
-
-  async function copyInviteLinkOnly() {
-    if (!referralUrl) {
-      toast.error('Sign in to get your invite link')
-      return
-    }
-    try {
-      await navigator.clipboard.writeText(referralUrl)
-      toast.success('Link copied')
-    } catch {
-      toast.error('Could not copy — try selecting the link manually')
-    }
-  }
 
   useEffect(() => {
     let cancelled = false
@@ -515,67 +450,6 @@ export function HomeScreen() {
             ))
           )}
         </div>
-
-        <motion.section
-          className="mb-8 overflow-hidden rounded-3xl border border-violet-200/60 bg-gradient-to-br from-violet-100 via-white to-indigo-50 p-5 shadow-lg shadow-violet-500/10"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          aria-labelledby="home-invite-heading"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <p
-                id="home-invite-heading"
-                className="text-sm font-extrabold text-slate-900"
-              >
-                Invite friends
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                Share your personal link. Friends open it to sign up — you both play skill
-                quizzes and climb the leaderboard.
-              </p>
-              {referralUrl ? (
-                <p className="mt-2 truncate rounded-lg bg-white/60 px-2 py-1.5 font-mono text-[10px] text-slate-500 ring-1 ring-violet-100/80">
-                  {referralUrl}
-                </p>
-              ) : (
-                <p className="mt-2 text-[11px] text-amber-700">
-                  Sign in to generate your invite link.
-                </p>
-              )}
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  disabled={!referralUrl || inviteBusy}
-                  onClick={() => void shareInviteLink()}
-                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white shadow-md shadow-violet-500/25 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {inviteBusy ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Share2 className="h-4 w-4" aria-hidden />
-                  )}
-                  {invitePrimaryLabel}
-                </button>
-                <button
-                  type="button"
-                  disabled={!referralUrl}
-                  onClick={() => void copyInviteLinkOnly()}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-white/90 px-4 py-2 text-xs font-semibold text-violet-900 shadow-sm transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  <Copy className="h-3.5 w-3.5" aria-hidden />
-                  Copy
-                </button>
-              </div>
-            </div>
-            <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-200/90 to-fuchsia-100 shadow-inner"
-              aria-hidden
-            >
-              <Gift className="h-7 w-7 text-violet-700" strokeWidth={1.75} />
-            </div>
-          </div>
-        </motion.section>
 
         <section className="mb-6" data-tour="tour-leaderboard-preview">
           <div className="mb-3 flex items-center justify-between">
