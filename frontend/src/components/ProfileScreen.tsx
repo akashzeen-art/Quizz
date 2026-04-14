@@ -11,6 +11,7 @@ import {
   Loader2,
   Mail,
   MapPin,
+  Pencil,
   Phone,
   Plus,
   Save,
@@ -80,6 +81,7 @@ export function ProfileScreen() {
   const navigate = useNavigate()
   const { user, setUser, loading } = useApp()
   const [name, setName] = useState('')
+  const [gameTag, setGameTag] = useState('')
   const [avatarKey, setAvatarKey] = useState('')
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [pendingPreview, setPendingPreview] = useState<string | null>(null)
@@ -97,10 +99,11 @@ export function ProfileScreen() {
   useEffect(() => {
     if (!user) return
     setName(user.displayName || 'Player')
+    setGameTag(user.gameTag || '')
     setAvatarKey(user.avatarKey ?? '')
     setPendingFile(null)
     setClearGalleryOnSave(false)
-  }, [user?.id, user?.displayName, user?.avatarKey, user?.profilePhotoUrl])
+  }, [user?.id, user?.displayName, user?.gameTag, user?.avatarKey, user?.profilePhotoUrl])
 
   useEffect(() => {
     if (!pendingFile) {
@@ -152,6 +155,11 @@ export function ProfileScreen() {
       toast.error('Please enter a display name')
       return
     }
+    const normalizedTag = gameTag.trim().replace(/\s+/g, '').replace(/[^A-Za-z0-9_]/g, '')
+    if (normalizedTag.length < 4) {
+      toast.error('Game tag must be at least 4 characters')
+      return
+    }
     setSaving(true)
     try {
       if (pendingFile) {
@@ -162,6 +170,7 @@ export function ProfileScreen() {
 
       const next = await api.updateProfile({
         displayName: trimmed,
+        gameTag: normalizedTag,
         avatarKey: avatarKey.trim(),
         profilePhotoUrl: null,
         clearCustomPhoto: clearCustom,
@@ -304,8 +313,12 @@ export function ProfileScreen() {
         </section>
 
         <section className="space-y-2">
-          <label className="text-xs font-semibold text-slate-600" htmlFor="dn">
+          <label
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600"
+            htmlFor="dn"
+          >
             Display name
+            <Pencil className="h-3.5 w-3.5 text-violet-500" aria-hidden />
           </label>
           <input
             id="dn"
@@ -314,6 +327,26 @@ export function ProfileScreen() {
             maxLength={80}
             className="input-app text-sm"
           />
+        </section>
+
+        <section className="space-y-2">
+          <label
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600"
+            htmlFor="gt"
+          >
+            Game tag
+            <Pencil className="h-3.5 w-3.5 text-violet-500" aria-hidden />
+          </label>
+          <input
+            id="gt"
+            value={gameTag}
+            onChange={(e) => setGameTag(e.target.value)}
+            maxLength={24}
+            className="input-app text-sm"
+          />
+          <p className="text-[11px] text-slate-500">
+            Shown in the app header. Use letters, numbers, or underscore.
+          </p>
         </section>
 
         {(user.email?.trim() || user.phone?.trim()) && (

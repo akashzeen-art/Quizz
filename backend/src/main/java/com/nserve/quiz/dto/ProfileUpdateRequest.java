@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Size;
 
 public record ProfileUpdateRequest(
     @NotBlank @Size(max = 80) String displayName,
+    @NotBlank @Size(min = 4, max = 24) String gameTag,
     /** When non-null, replaces avatar seed (empty string clears). */
     @Size(max = 64) String avatarKey,
     /** New gallery image path from {@code POST /user/profile/photo}; ignored if blank. */

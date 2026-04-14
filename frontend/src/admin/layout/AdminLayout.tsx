@@ -5,6 +5,7 @@ import {
   Users,
   ListChecks,
   PlusCircle,
+  Upload,
 } from 'lucide-react'
 import { setAdminToken } from '../adminApi'
 
@@ -71,6 +72,15 @@ export function AdminLayout() {
             >
               <PlusCircle className="h-5 w-5 shrink-0" />
               Add Quiz
+            </NavLink>
+            <NavLink
+              to="/admin/quizzes/upload-csv"
+              className={({ isActive }) =>
+                `${link} ${isActive ? 'bg-violet-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`
+              }
+            >
+              <Upload className="h-5 w-5 shrink-0" />
+              Upload CSV
             </NavLink>
           </nav>
           <button

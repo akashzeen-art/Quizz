@@ -1,6 +1,9 @@
 package com.nserve.quiz.api;
 
+import com.nserve.quiz.dto.AdminQuizBulkStatusRequest;
+import com.nserve.quiz.dto.AdminQuizBulkDeleteRequest;
 import com.nserve.quiz.dto.AdminQuizCreateRequest;
+import com.nserve.quiz.dto.AdminQuizStatusUpdateRequest;
 import com.nserve.quiz.dto.AdminQuizSummaryDto;
 import com.nserve.quiz.security.CurrentAdmin;
 import com.nserve.quiz.service.AdminQuizService;
@@ -41,5 +44,27 @@ public class AdminQuizController {
   public void delete(
       @RequestAttribute(CurrentAdmin.ATTR) String adminEmail, @PathVariable String id) {
     adminQuizService.delete(id);
+  }
+
+  @PostMapping("/{id}/status")
+  public AdminQuizSummaryDto updateStatus(
+      @RequestAttribute(CurrentAdmin.ATTR) String adminEmail,
+      @PathVariable String id,
+      @Valid @RequestBody AdminQuizStatusUpdateRequest body) {
+    return adminQuizService.updateStatus(id, body.status(), body.startsAt());
+  }
+
+  @PostMapping("/bulk-status")
+  public List<AdminQuizSummaryDto> bulkStatus(
+      @RequestAttribute(CurrentAdmin.ATTR) String adminEmail,
+      @Valid @RequestBody AdminQuizBulkStatusRequest body) {
+    return adminQuizService.bulkUpdateStatus(body.quizIds(), body.status(), body.startsAt());
+  }
+
+  @PostMapping("/bulk-delete")
+  public void bulkDelete(
+      @RequestAttribute(CurrentAdmin.ATTR) String adminEmail,
+      @Valid @RequestBody AdminQuizBulkDeleteRequest body) {
+    adminQuizService.bulkDelete(body.quizIds());
   }
 }

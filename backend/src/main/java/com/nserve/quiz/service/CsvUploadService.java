@@ -6,6 +6,7 @@ import com.nserve.quiz.domain.Question;
 import com.nserve.quiz.domain.Quiz;
 import com.nserve.quiz.domain.QuizStatus;
 import com.nserve.quiz.dto.CsvUploadResult;
+import com.nserve.quiz.dto.PdfQuizUploadResultDto;
 import com.nserve.quiz.repo.QuestionRepository;
 import com.nserve.quiz.repo.QuizRepository;
 import com.opencsv.CSVReader;
@@ -16,7 +17,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -61,6 +65,123 @@ public class CsvUploadService {
     return new CsvUploadResult(savedIds.size(), setsCreated, clampedRelease, errors);
   }
 
+  /** Strict structured CSV mode: TITLE is mandatory and each TITLE must have exactly 10 questions. */
+  public PdfQuizUploadResultDto parseStructuredAndOptionallySave(
+      MultipartFile file, String defaultCategory, boolean saveAsDraft) throws IOException {
+    List<String[]> rows = parseRows(file);
+    List<String> errors = new ArrayList<>();
+    List<StructuredSet> sets = parseStructuredSets(rows, errors);
+    if (!errors.isEmpty()) {
+      int show = Math.min(errors.size(), 12);
+      throw new IllegalArgumentException(
+          "Invalid CSV format:\n- " + String.join("\n- ", errors.subList(0, show)));
+    }
+    if (sets.isEmpty()) {
+      throw new IllegalArgumentException("No valid quiz sets found in CSV");
+    }
+    if (saveAsDraft) {
+      persistStructuredSets(sets, defaultCategory);
+    }
+    int total = sets.stream().mapToInt(s -> s.questions.size()).sum();
+    List<PdfQuizUploadResultDto.PdfQuizSetDto> previews =
+        sets.stream()
+            .map(
+                s ->
+                    new PdfQuizUploadResultDto.PdfQuizSetDto(
+                        s.title,
+                        s.questions.size(),
+                        s.questions.stream().limit(3).map(q -> q.getQuestionText()).toList()))
+            .toList();
+    return new PdfQuizUploadResultDto(total, sets.size(), saveAsDraft, previews, List.of());
+  }
+
+  private List<StructuredSet> parseStructuredSets(List<String[]> rows, List<String> errors) {
+    List<StructuredSet> sets = new ArrayList<>();
+    StructuredSet current = null;
+    int lineNo = 1;
+    for (String[] r : rows) {
+      lineNo++;
+      if (r.length == 0) continue;
+      String type = col(r, 0).trim();
+      if (type.isBlank()) continue;
+      if ("TITLE".equalsIgnoreCase(type)) {
+        if (current != null && current.questions.size() != QUESTIONS_PER_SET) {
+          errors.add(
+              "TITLE \"" + current.title + "\" must have exactly " + QUESTIONS_PER_SET
+                  + " questions, found " + current.questions.size());
+        }
+        String title = col(r, 1).trim();
+        if (title.isBlank()) {
+          errors.add("Line " + lineNo + ": TITLE row missing quiz name");
+          current = null;
+          continue;
+        }
+        current = new StructuredSet(title);
+        sets.add(current);
+        continue;
+      }
+      if (current == null) {
+        errors.add("Line " + lineNo + ": question row found before first TITLE");
+        continue;
+      }
+      if (r.length < 8) {
+        errors.add("Line " + lineNo + ": expected 8 columns");
+        continue;
+      }
+      if (current.questions.size() >= QUESTIONS_PER_SET) {
+        errors.add(
+            "Line " + lineNo + ": TITLE \"" + current.title + "\" has more than "
+                + QUESTIONS_PER_SET + " questions");
+        continue;
+      }
+      try {
+        Question q = toQuestion(r, "general");
+        // For strict binary format keep option slots stable (A/B + empty C/D)
+        if (q.getInputType() == InputType.binary && q.getOptions().size() == 2) {
+          q.setOptions(Arrays.asList(q.getOptions().get(0), q.getOptions().get(1), "", ""));
+        }
+        current.questions.add(q);
+      } catch (Exception ex) {
+        errors.add("Line " + lineNo + ": " + ex.getMessage());
+      }
+    }
+    if (sets.isEmpty()) {
+      errors.add("TITLE row is mandatory for each quiz set");
+      return List.of();
+    }
+    if (current != null && current.questions.size() != QUESTIONS_PER_SET) {
+      errors.add(
+          "TITLE \"" + current.title + "\" must have exactly " + QUESTIONS_PER_SET
+              + " questions, found " + current.questions.size());
+    }
+    return sets;
+  }
+
+  private void persistStructuredSets(List<StructuredSet> sets, String defaultCategory) {
+    String category =
+        defaultCategory != null && !defaultCategory.isBlank()
+            ? defaultCategory.trim().toLowerCase(Locale.ROOT)
+            : "general";
+    for (StructuredSet set : sets) {
+      List<String> qids = new ArrayList<>();
+      for (Question q : set.questions) {
+        q.setCategory(category);
+        questionRepository.save(q);
+        qids.add(q.getId());
+      }
+      Quiz quiz = new Quiz();
+      quiz.setTitle(set.title);
+      quiz.setDescription("CSV imported draft");
+      quiz.setStatus(QuizStatus.draft);
+      quiz.setCategory(category);
+      quiz.setSecondsPerQuestion(15);
+      quiz.setQuestionIds(qids);
+      quiz.setQuestionCount(qids.size());
+      quiz.setCreatedAt(Instant.now());
+      quizRepository.save(quiz);
+    }
+  }
+
   // ── parsing ──────────────────────────────────────────────────────────────
 
   private List<String[]> parseRows(MultipartFile file) throws IOException {
@@ -100,14 +221,24 @@ public class CsvUploadService {
     MediaType mediaType = resolveMediaType(typeRaw, asset);
 
     List<String> options = buildOptions(inputType, optA, optB, optC, optD);
-    int correctIndex = resolveCorrectIndex(correct, options);
 
     Question q = new Question();
     q.setQuestionText(text.trim());
     q.setInputType(inputType);
     q.setMediaType(mediaType);
     q.setOptions(options);
-    q.setCorrectAnswerIndex(correctIndex);
+    if (inputType == InputType.slider) {
+      try {
+        q.setCorrectNumeric(Double.parseDouble(correct.trim()));
+      } catch (NumberFormatException ex) {
+        throw new IllegalArgumentException("SLIDER correct answer must be numeric");
+      }
+      q.setCorrectAnswerIndex(null);
+    } else {
+      int correctIndex = resolveCorrectIndex(correct, options);
+      q.setCorrectAnswerIndex(correctIndex);
+      q.setCorrectNumeric(null);
+    }
     q.setCategory(defaultCategory != null && !defaultCategory.isBlank()
         ? defaultCategory.trim().toLowerCase() : "general");
 
@@ -120,11 +251,22 @@ public class CsvUploadService {
   // ── type mapping ─────────────────────────────────────────────────────────
 
   private InputType mapInputType(String raw) {
-    return switch (raw.trim().toUpperCase()) {
-      case "BINARY" -> InputType.binary;
-      case "TEXT MCQ", "IMAGE MCQ", "AUDIO MCQ", "GIF MCQ", "VIDEO MCQ" -> InputType.mcq4;
-      default -> throw new IllegalArgumentException("Unknown question type: " + raw);
-    };
+    String t = raw.trim().toUpperCase();
+    if (t.equals("BINARY")) return InputType.binary;
+    if (t.equals("SLIDER")) return InputType.slider;
+    // Treat these as MCQ4 (media type comes from type/asset)
+    if (t.equals("TEXT MCQ")
+        || t.equals("IMAGE MCQ")
+        || t.equals("AUDIO MCQ")
+        || t.equals("GIF MCQ")
+        || t.equals("VIDEO MCQ")
+        || t.equals("GIF")
+        || t.equals("IMAGE")
+        || t.equals("VIDEO")
+        || t.equals("AUDIO")) {
+      return InputType.mcq4;
+    }
+    throw new IllegalArgumentException("Unknown question type: " + raw);
   }
 
   private MediaType resolveMediaType(String typeRaw, String asset) {
@@ -153,7 +295,13 @@ public class CsvUploadService {
     if (type == InputType.binary) {
       if (a.isBlank() || b.isBlank())
         throw new IllegalArgumentException("BINARY requires Option A and Option B");
-      return Arrays.asList(a.trim(), b.trim());
+      return Arrays.asList(a.trim(), b.trim(), "", "");
+    }
+    if (type == InputType.slider) {
+      // Use Option A/B as min/max when provided; default to 0–100 if empty.
+      String min = isNull(a) ? "0" : a.trim();
+      String max = isNull(b) ? "100" : b.trim();
+      return Arrays.asList(min, max, "", "");
     }
     // mcq4 — replace NULL with empty string
     return Arrays.asList(
@@ -168,6 +316,9 @@ public class CsvUploadService {
     String c = correct.trim();
     for (int i = 0; i < options.size(); i++) {
       if (options.get(i).equalsIgnoreCase(c)) return i;
+      if (normalizeAnswer(options.get(i)).equals(normalizeAnswer(c))) return i;
+      if (normalizeAnswerLoosePlural(options.get(i)).equals(normalizeAnswerLoosePlural(c)))
+        return i;
     }
     // try numeric index (0-based or 1-based)
     try {
@@ -178,6 +329,17 @@ public class CsvUploadService {
     } catch (NumberFormatException ignored) {}
     throw new IllegalArgumentException(
         "Correct answer \"" + correct + "\" does not match any option: " + options);
+  }
+
+  private static String normalizeAnswer(String s) {
+    if (s == null) return "";
+    return s.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+  }
+
+  private static String normalizeAnswerLoosePlural(String s) {
+    String n = normalizeAnswer(s);
+    if (n.endsWith("s") && n.length() > 3) return n.substring(0, n.length() - 1);
+    return n;
   }
 
   // ── quiz set generation ───────────────────────────────────────────────────
@@ -216,5 +378,14 @@ public class CsvUploadService {
 
   private boolean isNull(String v) {
     return v == null || v.isBlank() || v.equalsIgnoreCase("NULL") || v.equalsIgnoreCase("N/A");
+  }
+
+  private static class StructuredSet {
+    final String title;
+    final List<Question> questions = new ArrayList<>();
+
+    StructuredSet(String title) {
+      this.title = title;
+    }
   }
 }

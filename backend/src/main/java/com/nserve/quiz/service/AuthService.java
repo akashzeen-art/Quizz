@@ -51,6 +51,7 @@ public class AuthService {
                   u.setPhone(phone);
                   u.setDisplayName(
                       "Player " + phone.substring(Math.max(0, phone.length() - 4)));
+                  u.setGameTag(generateUniqueGameTag(u.getDisplayName(), phone));
                   u.setAuthToken(newToken());
                   u.setCreatedAt(Instant.now());
                   u.setPlanType("FREE");
@@ -79,6 +80,7 @@ public class AuthService {
                   User u = new User();
                   u.setEmail(email);
                   u.setDisplayName(capitalize(local));
+                  u.setGameTag(generateUniqueGameTag(u.getDisplayName(), email));
                   u.setAuthToken(newToken());
                   u.setCreatedAt(Instant.now());
                   u.setPlanType("FREE");
@@ -132,6 +134,9 @@ public class AuthService {
       if (u.getDisplayName() == null || u.getDisplayName().isBlank()) {
         u.setDisplayName(displayNameFromEmailOrName(email, name));
       }
+      if (u.getGameTag() == null || u.getGameTag().isBlank()) {
+        u.setGameTag(generateUniqueGameTag(u.getDisplayName(), email));
+      }
       if ((u.getProfilePhotoUrl() == null || u.getProfilePhotoUrl().isBlank())
           && picture != null
           && !picture.isBlank()) {
@@ -147,6 +152,7 @@ public class AuthService {
     user.setGoogleSub(sub);
     user.setEmail(email);
     user.setDisplayName(displayNameFromEmailOrName(email, name));
+    user.setGameTag(generateUniqueGameTag(user.getDisplayName(), email));
     if (picture != null && !picture.isBlank()) {
       user.setProfilePhotoUrl(picture);
     }
@@ -174,8 +180,11 @@ public class AuthService {
   private AuthResponse ensureSession(User user) {
     if (user.getAuthToken() == null || user.getAuthToken().isBlank()) {
       user.setAuthToken(newToken());
-      user = userRepository.save(user);
     }
+    if (user.getGameTag() == null || user.getGameTag().isBlank()) {
+      user.setGameTag(generateUniqueGameTag(user.getDisplayName(), user.getEmail()));
+    }
+    user = userRepository.save(user);
     return authResponse(user);
   }
 
@@ -207,5 +216,30 @@ public class AuthService {
       return "Player";
     }
     return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+  }
+
+  private String generateUniqueGameTag(String sourceName, String sourceId) {
+    String baseName = sourceName == null ? "Player" : sourceName;
+    String slug = baseName.replaceAll("[^A-Za-z0-9]", "");
+    if (slug.length() < 4) {
+      slug = "Player";
+    }
+    if (slug.length() > 12) {
+      slug = slug.substring(0, 12);
+    }
+    String digits = sourceId == null ? "" : sourceId.replaceAll("\\D", "");
+    String suffix = digits.length() >= 4 ? digits.substring(digits.length() - 4) : "";
+    for (int i = 0; i < 20; i++) {
+      String randomPart = String.format("%04d", (int) (Math.random() * 10_000));
+      String candidate = slug + (suffix.isBlank() ? randomPart : suffix);
+      if (candidate.length() > 24) {
+        candidate = candidate.substring(0, 24);
+      }
+      if (userRepository.findByGameTag(candidate).isEmpty()) {
+        return candidate;
+      }
+      suffix = randomPart;
+    }
+    return slug + System.currentTimeMillis() % 10_000;
   }
 }

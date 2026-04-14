@@ -14,6 +14,7 @@ public class Result {
   private String userId;
   private String quizId;
   private String questionId;
+  private String sessionId;
   private boolean correct;
   private boolean timedOut;
   private int pointsEarned;
@@ -54,6 +55,8 @@ public class Result {
     this.questionId = questionId;
   }
 
+  public String getSessionId() { return sessionId; }
+  public void setSessionId(String sessionId) { this.sessionId = sessionId; }
   public boolean isCorrect() { return correct; }
   public void setCorrect(boolean correct) { this.correct = correct; }
   public boolean isTimedOut() { return timedOut; }

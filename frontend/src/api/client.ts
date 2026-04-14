@@ -84,6 +84,10 @@ export function normalizeUserProfile(raw: unknown): UserProfileDto {
   return {
     id: String(r.id ?? ''),
     displayName: String(r.displayName ?? 'Player'),
+    gameTag:
+      r.gameTag != null && String(r.gameTag).trim() !== ''
+        ? String(r.gameTag).trim()
+        : undefined,
     email: r.email != null ? String(r.email) : undefined,
     phone: r.phone != null ? String(r.phone) : undefined,
     totalScore: Number(r.totalScore ?? 0),
@@ -128,6 +132,7 @@ export function resolveProfileImageUrl(user: UserProfileDto): string | undefined
 
 export type ProfileUpdatePayload = {
   displayName: string
+  gameTag: string
   /** Empty string clears the preset avatar on the server. */
   avatarKey: string
   profilePhotoUrl: string | null
@@ -445,6 +450,7 @@ export async function submitAnswer(body: {
   sliderValue?: number
   timeMs: number
   timedOut: boolean
+  sessionId?: string
 }) {
   const { data } = await api.post<SubmitAnswerResponse>(
     '/quiz/submit-answer',

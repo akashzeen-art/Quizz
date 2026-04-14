@@ -7,6 +7,7 @@ import AdminDashboard from './pages/AdminDashboard'
 import AdminPlayers from './pages/AdminPlayers'
 import AdminQuizList from './pages/AdminQuizList'
 import AdminQuizBuilder from './pages/AdminQuizBuilder'
+import AdminPdfUpload from './pages/AdminPdfUpload'
 
 function RequireAdmin() {
   if (!getAdminToken()) {
@@ -31,6 +32,7 @@ export function AdminApp() {
             <Route path="players" element={<AdminPlayers />} />
             <Route path="quizzes" element={<AdminQuizList />} />
             <Route path="quizzes/new" element={<AdminQuizBuilder />} />
+            <Route path="quizzes/upload-csv" element={<AdminPdfUpload />} />
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Route>
         </Route>

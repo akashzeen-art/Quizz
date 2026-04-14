@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import com.nserve.quiz.service.BoosterService;
+import com.nserve.quiz.service.EconomyConfigService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -43,6 +44,7 @@ public class QuizService {
   private final QuizPlayEntitlementRepository playEntitlementRepository;
   private final FeedbackService feedbackService;
   private final BoosterService boosterService;
+  private final EconomyConfigService economyConfigService;
 
   public QuizService(
       QuizRepository quizRepository,
@@ -51,7 +53,8 @@ public class QuizService {
       UserRepository userRepository,
       QuizPlayEntitlementRepository playEntitlementRepository,
       FeedbackService feedbackService,
-      BoosterService boosterService) {
+      BoosterService boosterService,
+      EconomyConfigService economyConfigService) {
     this.quizRepository = quizRepository;
     this.questionRepository = questionRepository;
     this.resultRepository = resultRepository;
@@ -59,6 +62,7 @@ public class QuizService {
     this.playEntitlementRepository = playEntitlementRepository;
     this.feedbackService = feedbackService;
     this.boosterService = boosterService;
+    this.economyConfigService = economyConfigService;
   }
 
   public java.util.Optional<QuizPlayEntitlement> findEntitlementByRef(String playRef, String userId, String quizId) {
@@ -80,6 +84,9 @@ public class QuizService {
         case live -> live.add(q);
         case upcoming -> upcoming.add(q);
         case ended -> ended.add(q);
+        case draft, archived -> {
+          // hidden from player app
+        }
       }
     }
     live.sort(byStartsDesc()); upcoming.sort(byStartsAsc()); ended.sort(byStartsDesc());
@@ -155,18 +162,24 @@ public class QuizService {
     int sessionQuestionCount = validateSession(user, req.quizId());
 
     // Prevent double-submit for same question
-    var dup = resultRepository.findByUserIdAndQuizIdAndQuestionId(
-        user.getId(), req.quizId(), req.questionId());
-    if (dup.isPresent()) {
-      Result r = dup.get();
-      Question qq = questionRepository.findById(req.questionId())
-          .orElseThrow(() -> new IllegalArgumentException("Question not found"));
-      Integer reveal = qq.getInputType() == InputType.slider ? null : qq.getCorrectAnswerIndex();
-      return new SubmitAnswerResponse(r.isCorrect(), false, 0, "Already answered", user.getTotalScore(), reveal, boosterService.isBoosterActive(user), false);
+    // Scope dup check to current session — allows replaying same quiz in new session
+    String sessionId = req.sessionId() != null ? req.sessionId() : "";
+    if (!sessionId.isBlank()) {
+      var dup = resultRepository.findByUserIdAndQuizIdAndQuestionIdAndSessionId(
+          user.getId(), req.quizId(), req.questionId(), sessionId);
+      if (dup.isPresent()) {
+        Result r = dup.get();
+        Question qq = questionRepository.findById(req.questionId())
+            .orElseThrow(() -> new IllegalArgumentException("Question not found"));
+        Integer reveal = qq.getInputType() == InputType.slider ? null : qq.getCorrectAnswerIndex();
+        return new SubmitAnswerResponse(r.isCorrect(), false, 0, "Already answered", user.getTotalScore(), reveal, boosterService.isBoosterActive(user), false);
+      }
     }
 
     // Prevent submitting more answers than questions in session
-    long answeredSoFar = resultRepository.countByUserIdAndQuizId(user.getId(), req.quizId());
+    long answeredSoFar = sessionId.isBlank()
+        ? resultRepository.countByUserIdAndQuizId(user.getId(), req.quizId())
+        : resultRepository.countByUserIdAndQuizIdAndSessionId(user.getId(), req.quizId(), sessionId);
     if (answeredSoFar >= sessionQuestionCount) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "Quiz session already completed.");
     }
@@ -188,6 +201,7 @@ public class QuizService {
     row.setUserId(user.getId());
     row.setQuizId(req.quizId());
     row.setQuestionId(req.questionId());
+    row.setSessionId(sessionId);
     row.setCorrect(correct);
     row.setTimedOut(req.timedOut());
     row.setPointsEarned(points);
@@ -323,9 +337,9 @@ public class QuizService {
     return req.answerIndex().equals(q.getCorrectAnswerIndex());
   }
 
-  private static int computePoints(boolean correct, boolean timedOut) {
-    if (timedOut) return 0;
-    return correct ? 10 : -2;
+  private int computePoints(boolean correct, boolean timedOut) {
+    if (timedOut) return economyConfigService.get().getTimeoutPoints();
+    return correct ? economyConfigService.get().getCorrectPoints() : economyConfigService.get().getWrongPoints();
   }
 
   private QuizDto toDto(Quiz q) {

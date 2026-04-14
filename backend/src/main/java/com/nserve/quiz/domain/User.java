@@ -24,6 +24,9 @@ public class User {
   private String googleSub;
 
   private String displayName;
+  /** Public gamer tag shown in the app header/leaderboards. */
+  @Indexed(unique = true, sparse = true)
+  private String gameTag;
 
   /** City/region label chosen by the user (optional). */
   private String location;
@@ -115,6 +118,14 @@ public class User {
 
   public void setDisplayName(String displayName) {
     this.displayName = displayName;
+  }
+
+  public String getGameTag() {
+    return gameTag;
+  }
+
+  public void setGameTag(String gameTag) {
+    this.gameTag = gameTag;
   }
 
   public String getLocation() {

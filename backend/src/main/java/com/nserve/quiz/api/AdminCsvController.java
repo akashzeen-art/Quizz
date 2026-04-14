@@ -1,6 +1,7 @@
 package com.nserve.quiz.api;
 
 import com.nserve.quiz.dto.CsvUploadResult;
+import com.nserve.quiz.dto.PdfQuizUploadResultDto;
 import com.nserve.quiz.security.CurrentAdmin;
 import com.nserve.quiz.service.CsvUploadService;
 import java.io.IOException;
@@ -40,5 +41,34 @@ public class AdminCsvController {
     if (file.getSize() > MAX_BYTES)
       throw new IllegalArgumentException("File exceeds 5 MB limit");
     return csvUploadService.process(file, category, titlePrefix, releaseSetNumber);
+  }
+
+  @PostMapping(value = "/upload-csv/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public PdfQuizUploadResultDto previewStructured(
+      @RequestAttribute(CurrentAdmin.ATTR) String adminEmail,
+      @RequestParam("file") MultipartFile file,
+      @RequestParam(value = "category", defaultValue = "general") String category)
+      throws IOException {
+    validateCsv(file);
+    return csvUploadService.parseStructuredAndOptionallySave(file, category, false);
+  }
+
+  @PostMapping(value = "/upload-csv/save", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public PdfQuizUploadResultDto saveStructured(
+      @RequestAttribute(CurrentAdmin.ATTR) String adminEmail,
+      @RequestParam("file") MultipartFile file,
+      @RequestParam(value = "category", defaultValue = "general") String category)
+      throws IOException {
+    validateCsv(file);
+    return csvUploadService.parseStructuredAndOptionallySave(file, category, true);
+  }
+
+  private static void validateCsv(MultipartFile file) {
+    if (file.isEmpty()) throw new IllegalArgumentException("File is empty");
+    String originalName = file.getOriginalFilename();
+    if (originalName == null || !originalName.toLowerCase().endsWith(".csv"))
+      throw new IllegalArgumentException("Only .csv files are accepted");
+    if (file.getSize() > MAX_BYTES)
+      throw new IllegalArgumentException("File exceeds 5 MB limit");
   }
 }

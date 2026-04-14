@@ -133,6 +133,28 @@ public class AdminQuizService {
   }
 
   @Transactional
+  public AdminQuizSummaryDto updateStatus(String id, QuizStatus status, Instant startsAt) {
+    Quiz q = quizRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Quiz not found"));
+    q.setStatus(status);
+    if (status == QuizStatus.upcoming) {
+      q.setStartsAt(startsAt != null ? startsAt : Instant.now().plusSeconds(3600));
+    } else if (status == QuizStatus.live) {
+      q.setStartsAt(startsAt != null ? startsAt : Instant.now());
+    }
+    quizRepository.save(q);
+    return toSummary(q);
+  }
+
+  @Transactional
+  public List<AdminQuizSummaryDto> bulkUpdateStatus(List<String> ids, QuizStatus status, Instant startsAt) {
+    List<AdminQuizSummaryDto> out = new ArrayList<>();
+    for (String id : ids) {
+      out.add(updateStatus(id, status, startsAt));
+    }
+    return out;
+  }
+
+  @Transactional
   public void delete(String id) {
     Quiz q =
         quizRepository
@@ -147,12 +169,21 @@ public class AdminQuizService {
     quizRepository.deleteById(id);
   }
 
+  @Transactional
+  public void bulkDelete(List<String> ids) {
+    for (String id : ids) {
+      delete(id);
+    }
+  }
+
   private AdminQuizSummaryDto toSummary(Quiz q) {
     return new AdminQuizSummaryDto(
         q.getId(),
         q.getTitle(),
         q.getCategory() != null ? q.getCategory() : "—",
         q.getQuestionCount(),
+        q.getStatus(),
+        q.getStartsAt(),
         q.getCreatedAt());
   }
 }

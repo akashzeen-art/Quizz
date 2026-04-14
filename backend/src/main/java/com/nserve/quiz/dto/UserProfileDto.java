@@ -6,6 +6,7 @@ import java.util.List;
 public record UserProfileDto(
     String id,
     String displayName,
+    String gameTag,
     String email,
     String phone,
     int totalScore,

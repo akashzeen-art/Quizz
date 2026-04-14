@@ -9,4 +9,5 @@ public record SubmitAnswerRequest(
     Integer answerIndex,
     Double sliderValue,
     @NotNull Long timeMs,
-    boolean timedOut) {}
+    boolean timedOut,
+    String sessionId) {}

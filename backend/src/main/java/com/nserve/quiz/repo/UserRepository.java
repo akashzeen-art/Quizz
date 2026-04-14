@@ -18,6 +18,8 @@ public interface UserRepository extends MongoRepository<User, String> {
 
   Optional<User> findByGoogleSub(String googleSub);
 
+  Optional<User> findByGameTag(String gameTag);
+
   Page<User> findAll(Pageable pageable);
 
   @Query(

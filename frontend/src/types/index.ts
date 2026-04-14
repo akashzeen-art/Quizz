@@ -35,6 +35,7 @@ export interface QuizDetailDto {
 export interface UserProfileDto {
   id: string
   displayName: string
+  gameTag?: string
   email?: string
   phone?: string
   totalScore: number

@@ -11,14 +11,13 @@ import {
   LifeBuoy,
   MapPin,
   Menu,
-  SlidersHorizontal,
   Sparkles,
   User,
   Users,
   X,
   Zap,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import * as api from '../api/client'
@@ -35,7 +34,6 @@ import {
 import { AppBottomNav } from './AppBottomNav'
 import { AppTour } from './AppTour'
 import { START_TOUR_EVENT } from '../tour/homeTourSteps'
-import { CategoryFilterSheet } from './CategoryFilterSheet'
 import { LocationPickerSheet } from './LocationPickerSheet'
 import { Skeleton } from './ui/Skeleton'
 
@@ -46,6 +44,17 @@ const PILL_COLORS = [
   'bg-blue-500',
   'bg-pink-500',
   'bg-amber-500',
+]
+
+const PRIZE_TICKER_ITEMS = [
+  'Money ₹5,000',
+  'Bullet Bike ₹1,80,000',
+  'iPhone ₹89,900',
+  'Harley Davidson ₹8,50,000',
+  'Sports Car ₹12,00,000',
+  'Gaming Laptop ₹1,45,000',
+  'Travel Voucher ₹75,000',
+  'Smart TV ₹65,000',
 ]
 
 function monthGrid(year: number, month: number) {
@@ -64,7 +73,6 @@ export function HomeScreen() {
   const { user, logout, setUser, refreshProfile } = useApp()
   const [menuOpen, setMenuOpen] = useState(false)
   const [locationOpen, setLocationOpen] = useState(false)
-  const [categoryFilterOpen, setCategoryFilterOpen] = useState(false)
   const [addCreditsOpen, setAddCreditsOpen] = useState(false)
   const [addCreditsRupees, setAddCreditsRupees] = useState('50')
   const [addCreditsBusy, setAddCreditsBusy] = useState(false)
@@ -72,7 +80,6 @@ export function HomeScreen() {
   const [leaderboard, setLeaderboard] = useState<
     Awaited<ReturnType<typeof api.fetchLeaderboard>> | null
   >(null)
-  const categoryTickerRef = useRef<HTMLDivElement>(null)
 
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
 
@@ -143,31 +150,6 @@ export function HomeScreen() {
     return s
   }, [user?.playedDates])
 
-  const categoryPills = user?.categories ?? []
-
-  useEffect(() => {
-    const el = categoryTickerRef.current
-    if (!el || categoryPills.length <= 1) return
-    if (el.scrollWidth <= el.clientWidth) return
-
-    let raf = 0
-    let lastTs = 0
-    const speedPxPerMs = 0.045
-
-    const tick = (ts: number) => {
-      if (!lastTs) lastTs = ts
-      const dt = ts - lastTs
-      lastTs = ts
-      el.scrollLeft += dt * speedPxPerMs
-      const half = el.scrollWidth / 2
-      if (el.scrollLeft >= half) el.scrollLeft -= half
-      raf = window.requestAnimationFrame(tick)
-    }
-
-    raf = window.requestAnimationFrame(tick)
-    return () => window.cancelAnimationFrame(raf)
-  }, [categoryPills])
-
   // Refresh scores every time user returns to this screen (tab focus or navigation)
   useEffect(() => {
     const onVisible = () => {
@@ -200,6 +182,7 @@ export function HomeScreen() {
   }, [])
 
   const displayName = user?.displayName || 'Player'
+  const gameTag = user?.gameTag?.trim() || displayName
   const headerProfileImg = user ? api.resolveProfileImageUrl(user) : undefined
 
   function openFirstQuiz() {
@@ -253,7 +236,7 @@ export function HomeScreen() {
             <p className="text-sm font-semibold leading-snug text-white underline decoration-white/30 decoration-dotted underline-offset-2">
               {user?.location?.trim() || 'Tap to set'}
             </p>
-            <p className="text-xs text-white/80">{displayName}</p>
+            <p className="text-xs text-white/80">{gameTag}</p>
           </button>
           <button
             type="button"
@@ -295,29 +278,24 @@ export function HomeScreen() {
 
         <div
           data-tour="tour-categories"
-          ref={categoryTickerRef}
-          className="relative z-10 mt-5 min-h-[40px] overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="relative z-10 mt-5 min-h-[40px] overflow-hidden pb-1"
         >
-          <div className="flex w-max flex-nowrap gap-2">
-            <button
-              type="button"
-              className="shrink-0 rounded-full bg-white/15 p-3 text-white hover:bg-white/25"
-              aria-label="Filter categories"
-              onClick={() => setCategoryFilterOpen(true)}
-            >
-              <SlidersHorizontal className="h-5 w-5" />
-            </button>
-            {[...categoryPills, ...categoryPills].map((cat, i) => (
+          <motion.div
+            className="flex w-max flex-nowrap gap-2 pr-2"
+            animate={{ x: ['0%', '-50%'] }}
+            transition={{ duration: 18, ease: 'linear', repeat: Infinity }}
+          >
+            {[...PRIZE_TICKER_ITEMS, ...PRIZE_TICKER_ITEMS].map((item, i) => (
               <span
-                key={`${cat}-${i}`}
+                key={`${item}-${i}`}
                 className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold text-white shadow-md ${
                   PILL_COLORS[i % PILL_COLORS.length]
                 }`}
               >
-                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                {item}
               </span>
             ))}
-          </div>
+          </motion.div>
         </div>
       </div>
 
@@ -859,33 +837,6 @@ export function HomeScreen() {
       </AnimatePresence>
 
       <AppTour />
-
-      <CategoryFilterSheet
-        open={categoryFilterOpen}
-        onClose={() => setCategoryFilterOpen(false)}
-        initialCategories={user?.categories ?? []}
-        onSave={async (cats) => {
-          if (!user) {
-            toast.error('Not signed in')
-            throw new Error('no user')
-          }
-          try {
-            const profile = await api.savePreferences(cats)
-            setUser({
-              ...profile,
-              location: profile.location?.trim()
-                ? profile.location
-                : user.location?.trim()
-                  ? user.location
-                  : undefined,
-            })
-            toast.success('Categories updated')
-          } catch {
-            toast.error('Could not save categories')
-            throw new Error('save failed')
-          }
-        }}
-      />
 
       {addCreditsOpen ? (
         <div

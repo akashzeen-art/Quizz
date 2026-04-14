@@ -8,6 +8,7 @@ import com.nserve.quiz.dto.DeductCreditsResponse;
 import com.nserve.quiz.dto.WalletBalanceDto;
 import com.nserve.quiz.repo.CreditTransactionRepository;
 import com.nserve.quiz.repo.QuizPlayEntitlementRepository;
+import com.nserve.quiz.service.EconomyConfigService;
 import com.nserve.quiz.repo.UserRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -27,19 +28,19 @@ public class WalletService {
   private final UserRepository userRepository;
   private final QuizPlayEntitlementRepository entitlementRepository;
   private final CreditTransactionRepository txRepository;
-  private final int quizStartCost;
+  private final EconomyConfigService economyConfigService;
   private final int entitlementHours;
 
   public WalletService(
       UserRepository userRepository,
       QuizPlayEntitlementRepository entitlementRepository,
       CreditTransactionRepository txRepository,
-      @Value("${app.wallet.quiz-start-cost:10}") int quizStartCost,
+      EconomyConfigService economyConfigService,
       @Value("${app.wallet.entitlement-hours:24}") int entitlementHours) {
     this.userRepository = userRepository;
     this.entitlementRepository = entitlementRepository;
     this.txRepository = txRepository;
-    this.quizStartCost = quizStartCost;
+    this.economyConfigService = economyConfigService;
     this.entitlementHours = entitlementHours;
   }
 
@@ -55,7 +56,7 @@ public class WalletService {
   public WalletBalanceDto addCredits(User user, AddCreditsRequest req) {
     int fromRupees = 0;
     if (req.amountRupees() != null && req.amountRupees() > 0) {
-      long raw = (long) req.amountRupees() * CREDITS_PER_RUPEE;
+      long raw = (long) req.amountRupees() * economyConfigService.get().getCreditsPerRupee();
       if (raw > Integer.MAX_VALUE) throw new IllegalArgumentException("amountRupees too large");
       fromRupees = (int) raw;
     }
@@ -78,9 +79,10 @@ public class WalletService {
   /** Grant starter credits to a new user (called from AuthService on first login). */
   public void grantStarterCreditsIfNeeded(User user) {
     if (user.getCredits() > 0) return;
-    user.setCredits(STARTER_CREDITS);
+    user.setCredits(economyConfigService.get().getStarterCredits());
     userRepository.save(user);
-    saveTx(CreditTransaction.added(user.getId(), STARTER_CREDITS, STARTER_CREDITS, "Welcome bonus"));
+    int sc = economyConfigService.get().getStarterCredits();
+    saveTx(CreditTransaction.added(user.getId(), sc, sc, "Welcome bonus"));
   }
 
   public DeductCreditsResponse deductForQuiz(User user, String quizId, String clientRequestId) {
@@ -105,16 +107,17 @@ public class WalletService {
     } catch (Exception ignored) { /* collection not yet available */ }
 
     User u = userRepository.findById(user.getId()).orElseThrow();
-    if (u.getCredits() < quizStartCost) {
+    if (u.getCredits() < economyConfigService.get().getQuizStartCost()) {
       throw new ResponseStatusException(
           HttpStatus.PAYMENT_REQUIRED,
-          "Insufficient credits. You need at least " + quizStartCost + " credits to start a quiz.");
+          "Insufficient credits. You need at least " + economyConfigService.get().getQuizStartCost() + " credits.");
     }
-    u.setCredits(u.getCredits() - quizStartCost);
-    u.setTotalSpent(u.getTotalSpent() + quizStartCost);
+    int cost = economyConfigService.get().getQuizStartCost();
+    u.setCredits(u.getCredits() - cost);
+    u.setTotalSpent(u.getTotalSpent() + cost);
     userRepository.save(u);
 
-    saveTx(CreditTransaction.used(u.getId(), quizStartCost, u.getCredits(), "Quiz start: " + quizId));
+    saveTx(CreditTransaction.used(u.getId(), economyConfigService.get().getQuizStartCost(), u.getCredits(), "Quiz start: " + quizId));
 
     try {
       QuizPlayEntitlement ent = new QuizPlayEntitlement();
@@ -128,7 +131,7 @@ public class WalletService {
     return new DeductCreditsResponse(u.getCredits(), u.getTotalSpent(), clientRequestId, quizId);
   }
 
-  public int getQuizStartCost() { return quizStartCost; }
+  public int getQuizStartCost() { return economyConfigService.get().getQuizStartCost(); }
 
   private void saveTx(CreditTransaction tx) {
     try { txRepository.save(tx); } catch (Exception ignored) { /* non-critical */ }

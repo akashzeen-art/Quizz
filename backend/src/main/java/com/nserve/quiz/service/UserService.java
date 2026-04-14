@@ -82,7 +82,18 @@ public class UserService {
     if (name.isEmpty()) {
       throw new IllegalArgumentException("Display name is required");
     }
+    String tag = normalizeGameTag(req.gameTag());
+    if (tag.length() < 4) {
+      throw new IllegalArgumentException("Game tag must be at least 4 characters");
+    }
+    userRepository
+        .findByGameTag(tag)
+        .filter(other -> !other.getId().equals(user.getId()))
+        .ifPresent(other -> {
+          throw new IllegalArgumentException("Game tag is already taken");
+        });
     user.setDisplayName(name);
+    user.setGameTag(tag);
 
     if (req.clearCustomPhoto()) {
       fileStorageService.deleteIfExists(user.getProfilePhotoUrl());
@@ -132,5 +143,11 @@ public class UserService {
     if (!url.startsWith(prefix)) {
       throw new IllegalArgumentException("Invalid profile photo path");
     }
+  }
+
+  private static String normalizeGameTag(String raw) {
+    if (raw == null) return "";
+    String compact = raw.trim().replaceAll("\\s+", "");
+    return compact.replaceAll("[^A-Za-z0-9_]", "");
   }
 }

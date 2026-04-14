@@ -1,4 +1,4 @@
-export type AdminQuizStatus = 'live' | 'upcoming' | 'ended'
+export type AdminQuizStatus = 'draft' | 'live' | 'upcoming' | 'ended' | 'archived'
 
 export interface AdminStats {
   totalUsers: number
@@ -42,5 +42,28 @@ export interface AdminQuizSummary {
   title: string
   category: string
   questionCount: number
+  status: AdminQuizStatus
+  startsAt?: string
   createdAt?: string
+}
+
+export interface PdfQuizSetPreview {
+  title: string
+  questionCount: number
+  sampleQuestions: string[]
+}
+
+export interface PdfQuizUploadResult {
+  totalQuestions: number
+  quizSetsCreated: number
+  savedAsDraft: boolean
+  sets: PdfQuizSetPreview[]
+  errors: string[]
+}
+
+export interface CsvUploadResult {
+  questionsUploaded: number
+  quizSetsCreated: number
+  releasedSetNumber: number
+  errors: string[]
 }

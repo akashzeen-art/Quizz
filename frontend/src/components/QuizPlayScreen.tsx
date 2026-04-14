@@ -49,6 +49,7 @@ export function QuizPlayScreen() {
 
   const sliderRef          = useRef(sliderVal)
   const questionStartedAt  = useRef(Date.now())
+  const sessionIdRef       = useRef('')
   sliderRef.current = sliderVal
 
   const q = questions[index]
@@ -60,6 +61,7 @@ export function QuizPlayScreen() {
     ;(async () => {
       try {
         const clientId = api.getQuizPlayClientId(id)
+        sessionIdRef.current = clientId
         const detail = await api.fetchQuiz(id, clientId)
         if (!cancelled) {
           setQuizMeta(detail.quiz)
@@ -108,7 +110,7 @@ export function QuizPlayScreen() {
       ? QUESTION_SEC * 1000
       : Math.min(QUESTION_SEC * 1000, Math.max(0, Date.now() - questionStartedAt.current))
     try {
-      const res = await api.submitAnswer({ quizId: id, questionId: q.id, answerIndex, sliderValue, timeMs, timedOut })
+      const res = await api.submitAnswer({ quizId: id, questionId: q.id, answerIndex, sliderValue, timeMs, timedOut, sessionId: sessionIdRef.current })
       const bundle = randomFeedbackBundle(res.correct)
 
       // compute points — +10 correct, -2 wrong, 0 timeout; x2 if booster active

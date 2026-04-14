@@ -11,6 +11,11 @@ public interface ResultRepository extends MongoRepository<Result, String> {
   Optional<Result> findByUserIdAndQuizIdAndQuestionId(
       String userId, String quizId, String questionId);
 
+  Optional<Result> findByUserIdAndQuizIdAndQuestionIdAndSessionId(
+      String userId, String quizId, String questionId, String sessionId);
+
+  long countByUserIdAndQuizIdAndSessionId(String userId, String quizId, String sessionId);
+
   long countByUserIdAndQuizId(String userId, String quizId);
 
   List<Result> findByUserIdAndQuizId(String userId, String quizId);

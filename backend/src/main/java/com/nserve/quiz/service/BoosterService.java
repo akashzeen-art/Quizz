@@ -2,6 +2,7 @@ package com.nserve.quiz.service;
 
 import com.nserve.quiz.domain.User;
 import com.nserve.quiz.repo.UserRepository;
+import com.nserve.quiz.service.EconomyConfigService;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -16,9 +17,11 @@ public class BoosterService {
   private static final double BOTTOM_PERCENT_TRIGGER = 0.40; // bottom 40%
 
   private final UserRepository userRepository;
+  private final EconomyConfigService economyConfigService;
 
-  public BoosterService(UserRepository userRepository) {
+  public BoosterService(UserRepository userRepository, EconomyConfigService economyConfigService) {
     this.userRepository = userRepository;
+    this.economyConfigService = economyConfigService;
   }
 
   /** Check if user currently has an active booster */
@@ -52,14 +55,14 @@ public class BoosterService {
     boolean trigger = false;
 
     // Trigger 1: 2+ consecutive wrong
-    if (u.getConsecutiveWrong() >= CONSECUTIVE_WRONG_TRIGGER) {
+    if (u.getConsecutiveWrong() >= economyConfigService.get().getBoosterConsecutiveWrongTrigger()) {
       trigger = true;
     }
 
     // Trigger 2: user inactive for 24+ hours
     if (!trigger && u.getLastActiveAt() != null) {
       long hoursSinceActive = u.getLastActiveAt().until(Instant.now(), ChronoUnit.HOURS);
-      if (hoursSinceActive >= INACTIVITY_HOURS_TRIGGER) trigger = true;
+      if (hoursSinceActive >= economyConfigService.get().getBoosterInactivityHoursTrigger()) trigger = true;
     }
 
     // Trigger 3: bottom 40% rank
@@ -68,7 +71,7 @@ public class BoosterService {
     }
 
     if (trigger) {
-      u.setBoosterActiveUntil(Instant.now().plus(BOOSTER_DURATION_MINUTES, ChronoUnit.MINUTES));
+      u.setBoosterActiveUntil(Instant.now().plus(economyConfigService.get().getBoosterDurationMinutes(), ChronoUnit.MINUTES));
       u.setConsecutiveWrong(0); // reset after activation
       userRepository.save(u);
       return true;
@@ -89,7 +92,7 @@ public class BoosterService {
       }
       if (userRank < 0) return false;
       double percentile = (double) userRank / all.size();
-      return percentile >= (1.0 - BOTTOM_PERCENT_TRIGGER); // bottom 40%
+      return percentile >= (1.0 - economyConfigService.get().getBoosterBottomPercentTrigger()); // bottom 40%
     } catch (Exception e) {
       return false;
     }

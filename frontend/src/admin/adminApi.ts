@@ -1,9 +1,12 @@
 import axios, { isAxiosError } from 'axios'
 import type {
   AdminCharts,
+  AdminQuizStatus,
   AdminQuizSummary,
   AdminStats,
   AdminUserPage,
+  CsvUploadResult,
+  PdfQuizUploadResult,
 } from './types'
 
 const baseURL = import.meta.env.VITE_API_URL || '/api'
@@ -98,6 +101,66 @@ export async function fetchAdminQuizzes() {
 
 export async function deleteAdminQuiz(id: string) {
   await adminApi.delete(`/admin/quiz/${id}`)
+}
+
+export async function bulkDeleteAdminQuizzes(quizIds: string[]) {
+  await adminApi.post('/admin/quiz/bulk-delete', { quizIds })
+}
+
+export async function updateAdminQuizStatus(
+  id: string,
+  status: AdminQuizStatus,
+  startsAt?: string,
+) {
+  const { data } = await adminApi.post<AdminQuizSummary>(`/admin/quiz/${id}/status`, {
+    status,
+    startsAt,
+  })
+  return data
+}
+
+export async function bulkUpdateAdminQuizStatus(
+  quizIds: string[],
+  status: AdminQuizStatus,
+  startsAt?: string,
+) {
+  const { data } = await adminApi.post<AdminQuizSummary[]>('/admin/quiz/bulk-status', {
+    quizIds,
+    status,
+    startsAt,
+  })
+  return data
+}
+
+export async function previewPdfQuizUpload(file: File, category: string) {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('category', category)
+  const { data } = await adminApi.post<PdfQuizUploadResult>('/admin/upload-csv/preview', fd)
+  return data
+}
+
+export async function savePdfQuizUpload(file: File, category: string) {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('category', category)
+  const { data } = await adminApi.post<PdfQuizUploadResult>('/admin/upload-csv/save', fd)
+  return data
+}
+
+export async function uploadCsv(
+  file: File,
+  category: string,
+  titlePrefix: string,
+  releaseSetNumber: number,
+) {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('category', category)
+  fd.append('titlePrefix', titlePrefix)
+  fd.append('releaseSetNumber', String(releaseSetNumber))
+  const { data } = await adminApi.post<CsvUploadResult>('/admin/upload-csv', fd)
+  return data
 }
 
 export async function uploadAdminMedia(file: File) {

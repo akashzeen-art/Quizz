@@ -14,6 +14,7 @@ public class UserMapper {
     return new UserProfileDto(
         u.getId(),
         name,
+        u.getGameTag(),
         u.getEmail(),
         u.getPhone(),
         u.getTotalScore(),

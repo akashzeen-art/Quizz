@@ -60,7 +60,9 @@ export default function AdminQuizBuilder() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('science')
-  const [status, setStatus] = useState<'live' | 'upcoming' | 'ended'>('live')
+  const [status, setStatus] = useState<'draft' | 'live' | 'upcoming' | 'ended'>('draft')
+  const [releaseMode, setReleaseMode] = useState<'draft' | 'manualLive' | 'scheduled'>('draft')
+  const [scheduledAtLocal, setScheduledAtLocal] = useState('')
   const [secondsPerQuestion, setSecondsPerQuestion] = useState(15)
   const [numQuestions, setNumQuestions] = useState(3)
   const [referenceDocumentUrl, setReferenceDocumentUrl] = useState('')
@@ -129,9 +131,27 @@ export default function AdminQuizBuilder() {
     setReferenceDocumentName('')
   }
 
-  async function submit() {
+  async function submit(targetStatus?: 'draft' | 'live' | 'upcoming' | 'ended') {
     if (!title.trim()) {
       toast.error('Title is required')
+      return
+    }
+    let finalStatus: 'draft' | 'live' | 'upcoming' | 'ended' =
+      targetStatus ?? status
+    if (!targetStatus) {
+      finalStatus =
+        releaseMode === 'draft'
+          ? 'draft'
+          : releaseMode === 'manualLive'
+            ? 'live'
+            : 'upcoming'
+    }
+    const scheduledIso =
+      releaseMode === 'scheduled' && scheduledAtLocal.trim()
+        ? new Date(scheduledAtLocal).toISOString()
+        : null
+    if (releaseMode === 'scheduled' && finalStatus === 'upcoming' && !scheduledIso) {
+      toast.error('Pick schedule date/time for upcoming release')
       return
     }
     for (let i = 0; i < questions.length; i++) {
@@ -161,9 +181,9 @@ export default function AdminQuizBuilder() {
         title: title.trim(),
         description: description.trim(),
         category: category.trim().toLowerCase(),
-        status,
+        status: finalStatus,
         secondsPerQuestion,
-        startsAt: null,
+        startsAt: finalStatus === 'upcoming' ? scheduledIso : null,
         endsAt: null,
         referenceDocumentUrl: hasSourceDoc ? referenceDocumentUrl.trim() : null,
         referenceDocumentName: hasSourceDoc ? referenceDocumentName.trim() : null,
@@ -181,7 +201,13 @@ export default function AdminQuizBuilder() {
         })),
       }
       await createAdminQuiz(body)
-      toast.success('Quiz created')
+      toast.success(
+        finalStatus === 'draft'
+          ? 'Draft quiz created'
+          : finalStatus === 'upcoming'
+            ? 'Upcoming quiz created'
+            : 'Live quiz created',
+      )
       navigate('/admin/quizzes')
     } catch (e) {
       toast.error(adminApiError(e))
@@ -292,15 +318,43 @@ export default function AdminQuizBuilder() {
             <select
               value={status}
               onChange={(e) =>
-                setStatus(e.target.value as 'live' | 'upcoming' | 'ended')
+                setStatus(e.target.value as 'draft' | 'live' | 'upcoming' | 'ended')
               }
               className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white"
             >
+              <option value="draft">Draft</option>
               <option value="live">Live</option>
               <option value="upcoming">Upcoming</option>
               <option value="ended">Ended</option>
             </select>
           </label>
+          <label>
+            <span className="text-xs font-semibold text-slate-400">Release mode</span>
+            <select
+              value={releaseMode}
+              onChange={(e) =>
+                setReleaseMode(
+                  e.target.value as 'draft' | 'manualLive' | 'scheduled',
+                )
+              }
+              className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white"
+            >
+              <option value="draft">Save as Draft (hidden from users)</option>
+              <option value="manualLive">Manual: go live now</option>
+              <option value="scheduled">Scheduled: upcoming until time</option>
+            </select>
+          </label>
+          {releaseMode === 'scheduled' && (
+            <label className="sm:col-span-2">
+              <span className="text-xs font-semibold text-slate-400">Schedule date/time</span>
+              <input
+                type="datetime-local"
+                value={scheduledAtLocal}
+                onChange={(e) => setScheduledAtLocal(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-white"
+              />
+            </label>
+          )}
           <label>
             <span className="text-xs font-semibold text-slate-400">
               Seconds / question
@@ -544,11 +598,20 @@ export default function AdminQuizBuilder() {
       <button
         type="button"
         disabled={saving}
+        onClick={() => void submit('draft')}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 py-4 text-sm font-bold text-slate-100 shadow-lg disabled:opacity-50"
+      >
+        {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+        Save as Draft
+      </button>
+      <button
+        type="button"
+        disabled={saving}
         onClick={() => void submit()}
         className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 py-4 text-sm font-bold text-white shadow-lg disabled:opacity-50"
       >
         {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-        Save quiz
+        Save with Release Mode
       </button>
     </div>
   )
