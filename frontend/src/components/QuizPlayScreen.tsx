@@ -45,7 +45,7 @@ export function QuizPlayScreen() {
   const [sliderVal, setSliderVal]     = useState(50)
   const [boosterActive, setBoosterActive] = useState(false)
   const [boosterJustActivated, setBoosterJustActivated] = useState(false)
-  const [boosterSecsLeft, setBoosterSecsLeft] = useState(0)
+  const [boosterSecsLeft] = useState(0)
 
   const sliderRef          = useRef(sliderVal)
   const questionStartedAt  = useRef(Date.now())

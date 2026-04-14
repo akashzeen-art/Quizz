@@ -7,6 +7,8 @@ public record UserProfileDto(
     String id,
     String displayName,
     String gameTag,
+    boolean faceRegistered,
+    boolean faceLoginEnabled,
     String email,
     String phone,
     int totalScore,

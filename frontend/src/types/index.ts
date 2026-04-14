@@ -36,6 +36,8 @@ export interface UserProfileDto {
   id: string
   displayName: string
   gameTag?: string
+  faceRegistered?: boolean
+  faceLoginEnabled?: boolean
   email?: string
   phone?: string
   totalScore: number

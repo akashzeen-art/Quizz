@@ -35,6 +35,7 @@ public class AuthFilter extends OncePerRequestFilter {
   protected boolean shouldNotFilter(HttpServletRequest request) {
     String uri = request.getRequestURI();
     if (uri.startsWith("/auth")
+        || ("POST".equalsIgnoreCase(request.getMethod()) && uri.equals("/face/login"))
         || uri.equals("/health")
         || uri.startsWith("/error")
         || uri.startsWith("/files")

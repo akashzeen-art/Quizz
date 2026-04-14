@@ -88,6 +88,8 @@ export function normalizeUserProfile(raw: unknown): UserProfileDto {
       r.gameTag != null && String(r.gameTag).trim() !== ''
         ? String(r.gameTag).trim()
         : undefined,
+    faceRegistered: Boolean(r.faceRegistered ?? false),
+    faceLoginEnabled: Boolean(r.faceLoginEnabled ?? true),
     email: r.email != null ? String(r.email) : undefined,
     phone: r.phone != null ? String(r.phone) : undefined,
     totalScore: Number(r.totalScore ?? 0),
@@ -114,6 +116,20 @@ export function normalizeUserProfile(raw: unknown): UserProfileDto {
     profileUpdatedAt:
       r.profileUpdatedAt != null ? String(r.profileUpdatedAt) : undefined,
   }
+}
+
+export async function faceLogin(image: Blob) {
+  const fd = new FormData()
+  fd.append('image', image, 'face.jpg')
+  const { data } = await api.post<{ token: string; user: unknown }>('/face/login', fd)
+  return { token: data.token, user: normalizeUserProfile(data.user) }
+}
+
+export async function faceRegister(image: Blob) {
+  const fd = new FormData()
+  fd.append('image', image, 'face.jpg')
+  const { data } = await api.post<unknown>('/face/register', fd)
+  return normalizeUserProfile(data)
 }
 
 /** Image URL for header / profile circle: gallery first, else Dicebear from {@code avatarKey}. */

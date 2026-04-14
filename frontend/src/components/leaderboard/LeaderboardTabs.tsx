@@ -1,4 +1,4 @@
-import { GLOBAL_SORTS, tabLabel, type TabId } from './leaderboardUtils'
+import { GLOBAL_SORTS, type TabId } from './leaderboardUtils'
 
 type Props = {
   tab: TabId

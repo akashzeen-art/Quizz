@@ -68,6 +68,12 @@ public class User {
   /** Consecutive wrong answers in current session (for booster trigger). */
   private int consecutiveWrong;
 
+  /** 128-d face embedding used for Face ID login (optional). */
+  private List<Double> faceEncoding;
+
+  /** Admin kill-switch for Face ID login when a face is registered. */
+  private boolean faceLoginEnabled = true;
+
   /** yyyy-MM-dd in UTC — reset dayScore when day changes */
   private String dayScoreDate;
 
@@ -246,6 +252,11 @@ public class User {
   public void setBoosterActiveUntil(java.time.Instant boosterActiveUntil) { this.boosterActiveUntil = boosterActiveUntil; }
   public int getConsecutiveWrong() { return consecutiveWrong; }
   public void setConsecutiveWrong(int consecutiveWrong) { this.consecutiveWrong = consecutiveWrong; }
+
+  public List<Double> getFaceEncoding() { return faceEncoding; }
+  public void setFaceEncoding(List<Double> faceEncoding) { this.faceEncoding = faceEncoding; }
+  public boolean isFaceLoginEnabled() { return faceLoginEnabled; }
+  public void setFaceLoginEnabled(boolean faceLoginEnabled) { this.faceLoginEnabled = faceLoginEnabled; }
 
   public String getDayScoreDate() {
     return dayScoreDate;

@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import {
   ArrowRight,
+  Camera,
   ChevronDown,
   ChevronLeft,
   Globe2,
@@ -12,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import * as api from '../api/client'
+import { FaceCaptureSheet } from './FaceCaptureSheet'
 import { useApp } from '../context/AppContext'
 import { shouldForceCategoryOnboarding } from '../lib/categoryOnboarding'
 import {
@@ -165,6 +167,7 @@ export function AuthScreen() {
   const { loginWithToken } = useApp()
   const [authMethod, setAuthMethod] = useState<AuthMethod>('choose')
   const [busy, setBusy] = useState(false)
+  const [faceOpen, setFaceOpen] = useState(false)
 
   const [email, setEmail] = useState('')
   const [countryIso, setCountryIso] = useState<CountryCode>(() => guessDefaultCountry())
@@ -248,6 +251,17 @@ export function AuthScreen() {
       toast.error(api.getApiErrorMessage(err))
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function onFaceCapture(image: Blob) {
+    try {
+      const res = await api.faceLogin(image)
+      loginWithToken(res.token, res.user)
+      setFaceOpen(false)
+      navigate(shouldForceCategoryOnboarding(res.user) ? '/categories' : '/home', { replace: true })
+    } catch (err) {
+      toast.error(api.getApiErrorMessage(err))
     }
   }
 
@@ -339,6 +353,22 @@ export function AuthScreen() {
                   </span>
                 </span>
               </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setFaceOpen(true)
+                }}
+                className="app-card flex w-full items-center gap-4 border-slate-200/90 p-4 text-left shadow-md transition hover:border-violet-200 hover:bg-violet-50/40 disabled:opacity-50"
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                  <Camera className="h-6 w-6" />
+                </span>
+                <span>
+                  <span className="block text-base font-bold text-slate-900">Login with Face</span>
+                  <span className="text-xs font-medium text-slate-500">Use your camera to sign in</span>
+                </span>
+              </button>
             </div>
 
             <div className="relative my-10">
@@ -357,6 +387,12 @@ export function AuthScreen() {
               setBusy={setBusy}
               loginWithToken={loginWithToken}
               navigate={navigate}
+            />
+            <FaceCaptureSheet
+              open={faceOpen}
+              title="Face login"
+              onClose={() => setFaceOpen(false)}
+              onCapture={onFaceCapture}
             />
           </>
         )}

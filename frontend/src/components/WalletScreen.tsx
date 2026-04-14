@@ -161,7 +161,6 @@ export function WalletScreen() {
       <AppBottomNav
         active="wallet"
         onPlay={onPlay}
-        onProfile={() => navigate('/profile')}
       />
 
       {/* Add Credits modal */}

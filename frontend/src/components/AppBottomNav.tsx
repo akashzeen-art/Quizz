@@ -4,7 +4,6 @@ import {
   Home,
   Play,
   Trophy,
-  User,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
