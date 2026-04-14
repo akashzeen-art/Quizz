@@ -1,16 +1,24 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  Banknote,
+  Bike,
   Bookmark,
   CalendarClock,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
   Coins,
+  Gift,
   HelpCircle,
   History,
+  Car,
+  Laptop,
   LifeBuoy,
   MapPin,
   Menu,
+  Ticket,
+  Tv,
+  Smartphone,
   Sparkles,
   User,
   Users,
@@ -46,15 +54,71 @@ const PILL_COLORS = [
   'bg-amber-500',
 ]
 
-const PRIZE_TICKER_ITEMS = [
-  'Money ₹5,000',
-  'Bullet Bike ₹1,80,000',
-  'iPhone ₹89,900',
-  'Harley Davidson ₹8,50,000',
-  'Sports Car ₹12,00,000',
-  'Gaming Laptop ₹1,45,000',
-  'Travel Voucher ₹75,000',
-  'Smart TV ₹65,000',
+const PRIZE_TICKER_ITEMS: {
+  label: string
+  worth: string
+  Icon: typeof Banknote
+  tone:
+    | 'from-fuchsia-500/25 to-violet-500/15'
+    | 'from-amber-500/25 to-orange-500/15'
+    | 'from-emerald-500/25 to-green-500/15'
+    | 'from-sky-500/25 to-blue-500/15'
+    | 'from-rose-500/25 to-pink-500/15'
+}[] = [
+  {
+    label: 'Money',
+    worth: '₹5,000',
+    Icon: Banknote,
+    tone: 'from-emerald-500/25 to-green-500/15',
+  },
+  {
+    label: 'Bullet Bike',
+    worth: '₹1,80,000',
+    Icon: Bike,
+    tone: 'from-amber-500/25 to-orange-500/15',
+  },
+  {
+    label: 'iPhone',
+    worth: '₹89,900',
+    Icon: Smartphone,
+    tone: 'from-sky-500/25 to-blue-500/15',
+  },
+  {
+    label: 'Harley Davidson',
+    worth: '₹8,50,000',
+    Icon: Bike,
+    tone: 'from-fuchsia-500/25 to-violet-500/15',
+  },
+  {
+    label: 'Sports Car',
+    worth: '₹12,00,000',
+    Icon: Car,
+    tone: 'from-rose-500/25 to-pink-500/15',
+  },
+  {
+    label: 'Gaming Laptop',
+    worth: '₹1,45,000',
+    Icon: Laptop,
+    tone: 'from-sky-500/25 to-blue-500/15',
+  },
+  {
+    label: 'Travel Voucher',
+    worth: '₹75,000',
+    Icon: Ticket,
+    tone: 'from-amber-500/25 to-orange-500/15',
+  },
+  {
+    label: 'Smart TV',
+    worth: '₹65,000',
+    Icon: Tv,
+    tone: 'from-fuchsia-500/25 to-violet-500/15',
+  },
+  {
+    label: 'Mystery Gift',
+    worth: 'Today only',
+    Icon: Gift,
+    tone: 'from-rose-500/25 to-pink-500/15',
+  },
 ]
 
 function monthGrid(year: number, month: number) {
@@ -285,16 +349,44 @@ export function HomeScreen() {
             animate={{ x: ['0%', '-50%'] }}
             transition={{ duration: 18, ease: 'linear', repeat: Infinity }}
           >
-            {[...PRIZE_TICKER_ITEMS, ...PRIZE_TICKER_ITEMS].map((item, i) => (
-              <span
-                key={`${item}-${i}`}
-                className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold text-white shadow-md ${
-                  PILL_COLORS[i % PILL_COLORS.length]
-                }`}
-              >
-                {item}
-              </span>
-            ))}
+            {[...PRIZE_TICKER_ITEMS, ...PRIZE_TICKER_ITEMS].map((item, i) => {
+              const Icon = item.Icon
+              const pillColor = PILL_COLORS[i % PILL_COLORS.length]
+              return (
+                <span
+                  key={`${item.label}-${item.worth}-${i}`}
+                  className={[
+                    'relative isolate shrink-0 overflow-hidden rounded-full px-3.5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white',
+                    'ring-1 ring-white/20 shadow-lg shadow-violet-900/35',
+                    'bg-gradient-to-r',
+                    item.tone,
+                    'backdrop-blur-sm',
+                    // outer glow tint per-chip
+                    pillColor,
+                  ].join(' ')}
+                >
+                  <span className="pointer-events-none absolute inset-0 opacity-70 blur-xl">
+                    <span
+                      className={`absolute -left-10 -top-10 h-24 w-24 rounded-full ${pillColor}`}
+                    />
+                    <span
+                      className={`absolute -bottom-10 -right-10 h-24 w-24 rounded-full ${pillColor}`}
+                    />
+                  </span>
+
+                  <span className="relative flex items-center gap-2">
+                    <span className="relative flex h-6 w-6 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20 shadow-[0_0_18px_rgba(255,255,255,0.18)]">
+                      <Icon className="h-3.5 w-3.5 text-white drop-shadow" aria-hidden />
+                      <span className="absolute -right-0.5 -top-0.5 h-2 w-2 animate-pulse rounded-full bg-amber-200/90 shadow-[0_0_10px_rgba(251,191,36,0.55)]" />
+                    </span>
+                    <span className="whitespace-nowrap">
+                      {item.label}{' '}
+                      <span className="font-black text-white/95">WORTH {item.worth}</span>
+                    </span>
+                  </span>
+                </span>
+              )
+            })}
           </motion.div>
         </div>
       </div>
