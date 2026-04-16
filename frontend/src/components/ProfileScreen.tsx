@@ -22,7 +22,6 @@ import { canJoinQuiz } from '../lib/quizEvents'
 import { useApp } from '../context/AppContext'
 import { AppBottomNav } from './AppBottomNav'
 import { LocationPickerSheet } from './LocationPickerSheet'
-import { FaceCaptureSheet } from './FaceCaptureSheet'
 import type { LucideIcon } from 'lucide-react'
 import type { UserProfileDto } from '../types'
 
@@ -89,8 +88,6 @@ export function ProfileScreen() {
   const [saving, setSaving] = useState(false)
   const [scorePeriod, setScorePeriod] = useState<ScorePeriod>('daily')
   const [, setTransactions] = useState<CreditTransaction[]>([])
-  const [faceOpen, setFaceOpen] = useState(false)
-  const [faceBusy, setFaceBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const avatarChoices = useMemo(() => pickTenSeeds(), [])
 
@@ -248,27 +245,16 @@ export function ProfileScreen() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-extrabold text-slate-900">Face login</p>
-              <p className="mt-0.5 text-xs font-medium text-slate-600">
-                {user.faceRegistered ? 'Face registered on this account.' : 'No face registered yet.'}
-              </p>
+              <p className="mt-0.5 text-xs font-medium text-slate-600">              </p>
             </div>
             <button
               type="button"
               className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
               onClick={() => setFaceOpen(true)}
               disabled={faceBusy}
-            >
-              {user.faceRegistered ? 'Re-register' : 'Register'}
-            </button>
+            >            </button>
           </div>
         </section>
-
-        <FaceCaptureSheet
-          open={faceOpen}
-          title="Register face"
-          onClose={() => setFaceOpen(false)}
-          onCapture={onRegisterFace}
-        />
         <div className="flex flex-col items-center">
           <div className="relative">
             <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-4 border-violet-200 bg-violet-50 shadow-inner">

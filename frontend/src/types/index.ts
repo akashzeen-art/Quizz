@@ -35,9 +35,6 @@ export interface QuizDetailDto {
 export interface UserProfileDto {
   id: string
   displayName: string
-  gameTag?: string
-  faceRegistered?: boolean
-  faceLoginEnabled?: boolean
   email?: string
   phone?: string
   totalScore: number
@@ -68,6 +65,8 @@ export interface LeaderboardEntryDto {
   rank: number
   displayName: string
   userId: string
+  avatarSeed?: string
+  avatarUrl?: string
   totalScore: number
   weeklyScore: number
   monthlyScore: number

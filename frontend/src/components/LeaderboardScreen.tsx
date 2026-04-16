@@ -30,12 +30,15 @@ export function LeaderboardScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [myRank, setMyRank] = useState<number | null>(null)
 
-  const load = useCallback(async (silent?: boolean) => {
+  const load = useCallback(async (silent?: boolean, forceRefresh?: boolean) => {
     if (silent) setRefreshing(true); else setLoading(true)
     try {
       const data = tab === 'quiz' && fromQuiz?.quizId
-        ? await api.fetchQuizLeaderboard(fromQuiz.quizId)
-        : await api.fetchLeaderboard(tab as api.WalletBalanceDto extends never ? never : Parameters<typeof api.fetchLeaderboard>[0])
+        ? await api.fetchQuizLeaderboardCached(fromQuiz.quizId, !!forceRefresh)
+        : await api.fetchLeaderboardCached(
+            tab as api.WalletBalanceDto extends never ? never : Parameters<typeof api.fetchLeaderboard>[0],
+            !!forceRefresh,
+          )
       setRows(data)
     } catch (e) {
       toast.error(api.getApiErrorMessage(e)); setRows([])
@@ -47,7 +50,7 @@ export function LeaderboardScreen() {
   useEffect(() => { void load() }, [load])
 
   useEffect(() => {
-    const onVisible = () => { if (document.visibilityState === 'visible') void load(true) }
+    const onVisible = () => { if (document.visibilityState === 'visible') void load(true, false) }
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [load])
@@ -64,7 +67,7 @@ export function LeaderboardScreen() {
     }
     setTimeout(() => requestAnimationFrame(cannon), 300)
     api.fetchMyRank('total').then(setMyRank).catch(() => {})
-    const t = setTimeout(() => void load(true), 1500)
+    const t = setTimeout(() => void load(true, true), 1500)
     return () => clearTimeout(t)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -98,7 +101,7 @@ export function LeaderboardScreen() {
             <ArrowLeft className="h-6 w-6" />
           </button>
           <button type="button" className="rounded-xl p-2 text-white/90 hover:bg-white/10 disabled:opacity-40"
-            disabled={loading || refreshing} onClick={() => void load(true)}>
+            disabled={loading || refreshing} onClick={() => void load(true, true)}>
             <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>

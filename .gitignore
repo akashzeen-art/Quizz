@@ -10,3 +10,8 @@ node_modules/
 target/
 dist/
 backend/uploads/
+
+# Python virtualenvs
+.venv/
+venv/
+face-service/.venv/

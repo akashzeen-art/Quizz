@@ -5,6 +5,7 @@ import {
   Play,
   Trophy,
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 
 export type BottomNavTab = 'home' | 'events' | 'leaderboard' | 'wallet' | 'profile'
@@ -52,15 +53,17 @@ export function AppBottomNav({ active, onPlay }: Props) {
       </button>
 
       <div className="relative -top-6 flex flex-col items-center gap-1 pb-2">
-        <button
+        <motion.button
           type="button"
           aria-label="Play"
           title="Play"
           className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-700 text-white shadow-xl shadow-violet-500/40 ring-4 ring-white transition hover:brightness-105 active:scale-95"
           onClick={onPlay}
+          animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.08, 1] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
         >
           <Play className="h-7 w-7 translate-x-px" fill="currentColor" />
-        </button>
+        </motion.button>
         <span className="text-[10px] font-semibold text-slate-500">Play</span>
       </div>
 

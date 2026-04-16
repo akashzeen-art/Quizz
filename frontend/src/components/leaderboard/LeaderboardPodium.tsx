@@ -1,23 +1,25 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Crown, Medal } from 'lucide-react'
+import { memo } from 'react'
 import type { LeaderboardEntryDto } from '../../types'
-import { formatTime, initial, scoreForTab, type TabId } from './leaderboardUtils'
+import { avatarGradient, formatTime, leaderboardAvatarUrl, prizeForRank, scoreForTab, type TabId } from './leaderboardUtils'
 
 type Props = {
   top3: LeaderboardEntryDto[]
   tab: TabId
 }
 
-export function LeaderboardPodium({ top3, tab }: Props) {
+function LeaderboardPodiumInner({ top3, tab }: Props) {
   return (
-    <div className="mb-6 flex items-end justify-center gap-2 sm:gap-4">
+    <div className="mb-10 flex items-end justify-center gap-2 sm:gap-4">
       <AnimatePresence mode="popLayout">
         {[1, 0, 2].map((idx) => {
           const row = top3[idx]
           if (!row) return null
           const order = idx + 1
-          const h = order === 1 ? 'h-36' : order === 2 ? 'h-28' : 'h-24'
+          const h = order === 1 ? 'h-44' : order === 2 ? 'h-36' : 'h-32'
           const score = scoreForTab(row, tab)
+          const prize = prizeForRank(row.rank)
           return (
             <motion.div key={row.userId + tab} layout
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
@@ -30,13 +32,21 @@ export function LeaderboardPodium({ top3, tab }: Props) {
                 {order === 1 && <Crown className="absolute -top-7 h-8 w-8 text-amber-400 drop-shadow" />}
                 {order === 2 && <Medal className="absolute -top-6 h-7 w-7 text-slate-400" />}
                 {order === 3 && <Medal className="absolute -top-6 h-7 w-7 text-amber-700" />}
-                <div className={`mb-2 flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold text-white shadow-inner ${
-                  order === 1 ? 'bg-gradient-to-br from-amber-400 to-orange-500'
-                  : order === 2 ? 'bg-gradient-to-br from-slate-400 to-slate-600'
-                  : 'bg-gradient-to-br from-amber-700 to-amber-900'
-                }`}>{initial(row.displayName)}</div>
+                <div className={`mb-2 h-11 w-11 overflow-hidden rounded-full bg-gradient-to-br shadow-inner ${avatarGradient(row.userId, false)}`}>
+                  <img
+                    src={leaderboardAvatarUrl(row)}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
                 <p className="max-w-full truncate px-1 text-center text-[11px] font-bold text-slate-800">{row.displayName}</p>
                 <p className="mt-0.5 text-sm font-black tabular-nums text-violet-600">{score.toLocaleString()}</p>
+                {prize && (
+                  <p className="mt-1 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-amber-800 ring-1 ring-amber-300/80">
+                    {prize}
+                  </p>
+                )}
                 {tab === 'quiz' && row.totalTimeMs > 0 && (
                   <p className="text-[9px] text-slate-400">⏱ {formatTime(row.totalTimeMs)}</p>
                 )}
@@ -49,3 +59,5 @@ export function LeaderboardPodium({ top3, tab }: Props) {
     </div>
   )
 }
+
+export const LeaderboardPodium = memo(LeaderboardPodiumInner)

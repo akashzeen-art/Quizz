@@ -57,6 +57,7 @@ function EventCard({
   const bucket = eventBucket(q)
   const st = statusStyles(bucket)
   const joinable = canJoinQuiz(q)
+  const cleanTitle = q.title.replace(/^CSV Imported Draft\s*[-:|]?\s*/i, '').trim()
 
   return (
     <motion.article
@@ -81,7 +82,7 @@ function EventCard({
         </span>
       </div>
       <div className="p-4">
-        <h3 className="text-lg font-bold text-slate-900">{q.title}</h3>
+        <h3 className="text-lg font-bold text-slate-900">{cleanTitle || q.title}</h3>
         <p className="mt-1 line-clamp-2 text-sm text-slate-600">{q.description}</p>
 
         <div className="mt-4 space-y-2 text-xs text-slate-500">

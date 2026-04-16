@@ -113,14 +113,16 @@ export function QuizPlayScreen() {
       const res = await api.submitAnswer({ quizId: id, questionId: q.id, answerIndex, sliderValue, timeMs, timedOut, sessionId: sessionIdRef.current })
       const bundle = randomFeedbackBundle(res.correct)
 
-      // compute points — +10 correct, -2 wrong, 0 timeout; x2 if booster active
-      const basePts = timedOut ? 0 : res.correct ? 10 : -2
-      const pts = (res.boosterActive && basePts > 0) ? basePts * 2 : basePts
+      // Trust backend-calculated score (includes booster x2 logic).
+      const pts = res.pointsEarned
 
       // Update booster state
       setBoosterActive(res.boosterActive || res.boosterJustActivated)
       if (res.boosterJustActivated) {
         setBoosterJustActivated(true)
+        toast.success('Score Booster Activated 🚀', {
+          description: 'X2 points for this quiz',
+        })
         setTimeout(() => setBoosterJustActivated(false), 100)
       }
 
@@ -183,7 +185,7 @@ export function QuizPlayScreen() {
   }, [q?.id, q?.inputType, frozen, result, submit])
 
   function onPick(i: number) { if (!frozen && !result) void submit(i, undefined, false) }
-  function onSliderRelease() { if (!frozen && !result) void submit(undefined, sliderVal, false) }
+  function onSliderSubmit() { if (!frozen && !result) void submit(undefined, sliderVal, false) }
   function onNext() {
     if (index + 1 >= questions.length) { setShowEndCard(true); return }
     setResult(null); setFrozen(false); setIndex((i) => i + 1)
@@ -334,8 +336,7 @@ export function QuizPlayScreen() {
               <input type="range" min={sliderBounds.min} max={sliderBounds.max} value={sliderVal}
                 disabled={!!result}
                 onChange={(e) => setSliderVal(Number(e.target.value))}
-                onPointerUp={onSliderRelease}
-                onKeyUp={(e) => { if (e.key === 'Enter') onSliderRelease() }}
+                onKeyUp={(e) => { if (e.key === 'Enter') onSliderSubmit() }}
                 className="slider-neutral w-full"
               />
               <div className="mt-4 flex items-center justify-between text-xs font-medium text-slate-400">
@@ -343,6 +344,15 @@ export function QuizPlayScreen() {
                 <span className="text-2xl font-bold tabular-nums text-slate-900">{sliderVal}</span>
                 <span>{sliderBounds.max} ▶</span>
               </div>
+              {!result && (
+                <button
+                  type="button"
+                  className="btn-app-primary mt-4 py-3"
+                  onClick={onSliderSubmit}
+                >
+                  Submit answer
+                </button>
+              )}
             </div>
           ) : optionCount === 4 ? (
             <div className="grid grid-cols-2 gap-3">

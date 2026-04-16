@@ -1,4 +1,5 @@
 import type { LeaderboardEntryDto } from '../../types'
+import { dicebearUrl } from '../../constants/avatars'
 
 export type TabId = 'total' | 'daily' | 'weekly' | 'monthly' | 'points' | 'quiz'
 
@@ -33,4 +34,39 @@ export function formatTime(ms: number) {
 export function tabLabel(t: TabId) {
   if (t === 'quiz') return 'This Quiz'
   return GLOBAL_SORTS.find(s => s.id === t)?.label ?? t
+}
+
+const AVATAR_GRADIENTS = [
+  'from-violet-500 to-indigo-600',
+  'from-emerald-500 to-teal-600',
+  'from-rose-500 to-pink-600',
+  'from-amber-500 to-orange-600',
+  'from-sky-500 to-blue-600',
+  'from-fuchsia-500 to-purple-600',
+  'from-lime-500 to-green-600',
+  'from-cyan-500 to-indigo-500',
+]
+
+export function avatarGradient(userId: string, isMe: boolean) {
+  if (isMe) return 'from-violet-600 to-indigo-700'
+  let h = 0
+  for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) >>> 0
+  return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length]
+}
+
+export function leaderboardAvatarUrl(row: LeaderboardEntryDto): string {
+  const raw = row.avatarUrl?.trim()
+  if (raw) {
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+    return raw.startsWith('/') ? raw : `/${raw}`
+  }
+  const seed = row.avatarSeed?.trim() || `lb-${row.userId || row.displayName || 'player'}`
+  return dicebearUrl(seed)
+}
+
+export function prizeForRank(rank: number): string | undefined {
+  if (rank === 1) return 'Bike'
+  if (rank === 2) return '2 Door Fridge'
+  if (rank === 3) return '10g Gold Coin'
+  return undefined
 }

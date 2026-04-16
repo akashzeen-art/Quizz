@@ -5,7 +5,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import * as api from '../api/client'
 import { useApp } from '../context/AppContext'
-import { dicebearUrl } from '../constants/avatars'
 import type { QuizDto } from '../types'
 import { GeometricOverlay } from './GeometricOverlay'
 import { VideoBackground } from './VideoBackground'
@@ -16,6 +15,18 @@ const ROW_SIZES = [8, 8, 7, 7] as const
 const LOAD_SECONDS = 7
 
 type LobbyPlayer = { id: string; name: string; seed: string }
+type StaticAvatar = { bg: string; badge: string }
+
+const STATIC_AVATARS: StaticAvatar[] = [
+  { bg: 'from-violet-500 to-fuchsia-500', badge: 'A' },
+  { bg: 'from-indigo-500 to-blue-500', badge: 'B' },
+  { bg: 'from-emerald-500 to-teal-500', badge: 'C' },
+  { bg: 'from-amber-500 to-orange-500', badge: 'D' },
+  { bg: 'from-rose-500 to-pink-500', badge: 'E' },
+  { bg: 'from-cyan-500 to-sky-500', badge: 'F' },
+  { bg: 'from-lime-500 to-green-500', badge: 'G' },
+  { bg: 'from-purple-500 to-indigo-500', badge: 'H' },
+]
 
 function makeLobbyPlayers(): LobbyPlayer[] {
   return Array.from({ length: LOBBY_PLAYER_COUNT }, (_, i) => ({
@@ -34,24 +45,31 @@ function ScrollingPlayerRow({
   durationSec: number
   reverse?: boolean
 }) {
+  const pickAvatar = (seed: string): StaticAvatar => {
+    let hash = 0
+    for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
+    return STATIC_AVATARS[hash % STATIC_AVATARS.length]
+  }
+
   const renderChips = (suffix: string) =>
-    players.map((p) => (
-      <div
-        key={`${suffix}-${p.id}`}
-        className="flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/15 py-1 pl-1 pr-3 shadow-md backdrop-blur-md"
-      >
-        <img
-          src={dicebearUrl(p.seed)}
-          alt=""
-          className="h-8 w-8 shrink-0 rounded-full bg-white/90 ring-2 ring-white/40"
-          width={32}
-          height={32}
-        />
-        <span className="max-w-[120px] truncate text-xs font-semibold text-white">
-          {p.name}
-        </span>
-      </div>
-    ))
+    players.map((p) => {
+      const avatar = pickAvatar(p.seed)
+      return (
+        <div
+          key={`${suffix}-${p.id}`}
+          className="flex shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/15 py-1 pl-1 pr-3 shadow-md backdrop-blur-md"
+        >
+          <div
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${avatar.bg} text-xs font-extrabold text-white ring-2 ring-white/40`}
+          >
+            {avatar.badge}
+          </div>
+          <span className="max-w-[120px] truncate text-xs font-semibold text-white">
+            {p.name}
+          </span>
+        </div>
+      )
+    })
 
   return (
     <div className="overflow-hidden rounded-xl py-0.5">
@@ -204,12 +222,18 @@ export function QuizLoadingScreen() {
 
           {/* Timer overlaid centered on the players section */}
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <div className="flex flex-col items-center">
-              <p className="text-5xl font-extrabold tabular-nums text-white drop-shadow-lg">{sec}</p>
+            <motion.div
+              className="flex flex-col items-center"
+              animate={{ scale: [1, 1.06, 1], opacity: [0.8, 1, 0.8] }}
+              transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <p className="text-[72px] font-extrabold tabular-nums leading-none text-white/80 drop-shadow-lg">
+                {sec}
+              </p>
               <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-white/70">
                 {/* Starting soon */}
               </p>
-            </div>
+            </motion.div>
           </div>
         </div>
       </div>

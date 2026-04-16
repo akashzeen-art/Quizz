@@ -94,6 +94,185 @@ public class AuthService {
     return authResponse(user);
   }
 
+  /** Sign in by phone only (no auto-register). */
+  public AuthResponse loginPhoneExisting(String rawPhone) {
+    String phone = normalizePhone(rawPhone);
+    if (phone.length() < 8 || phone.length() > 15) {
+      throw new IllegalArgumentException("Enter a valid phone number with country code");
+    }
+    User user =
+        userRepository
+            .findByPhone(phone)
+            .orElseThrow(() -> new IllegalArgumentException("No account found. Please sign up."));
+    if (user.getAuthToken() == null || user.getAuthToken().isBlank()) {
+      user.setAuthToken(newToken());
+      user = userRepository.save(user);
+    }
+    return authResponse(user);
+  }
+
+  /** Sign in by email only (no auto-register). */
+  public AuthResponse loginEmailExisting(String rawEmail) {
+    String email = rawEmail.trim().toLowerCase();
+    if (email.isBlank() || !email.contains("@")) {
+      throw new IllegalArgumentException("Enter a valid email address");
+    }
+    User user =
+        userRepository
+            .findByEmail(email)
+            .orElseThrow(() -> new IllegalArgumentException("No account found. Please sign up."));
+    if (user.getAuthToken() == null || user.getAuthToken().isBlank()) {
+      user.setAuthToken(newToken());
+      user = userRepository.save(user);
+    }
+    return authResponse(user);
+  }
+
+  /** Creates a new user (or logs in if already exists) with profile fields from the signup flow. */
+  public AuthResponse signup(
+      String method,
+      String identifier,
+      String rawGameTag,
+      String rawName,
+      String avatarKey,
+      String googleCredential)
+      throws GeneralSecurityException, IOException {
+    String m = method == null ? "" : method.trim().toLowerCase();
+    String name = rawName == null ? "" : rawName.trim();
+    if (name.isBlank()) throw new IllegalArgumentException("Full name is required");
+    String tag = normalizeGameTag(rawGameTag);
+    if (tag.length() < 4) throw new IllegalArgumentException("Game tag must be at least 4 characters");
+    userRepository.findByGameTag(tag).ifPresent(u -> { throw new IllegalArgumentException("Game tag is already taken"); });
+
+    if ("email".equals(m)) {
+      String email = identifier == null ? "" : identifier.trim().toLowerCase();
+      if (email.isBlank() || !email.contains("@")) throw new IllegalArgumentException("Enter a valid email address");
+      return signupEmail(email, name, tag, avatarKey);
+    }
+    if ("phone".equals(m)) {
+      String phone = normalizePhone(identifier == null ? "" : identifier);
+      if (phone.length() < 8 || phone.length() > 15) {
+        throw new IllegalArgumentException("Enter a valid phone number with country code");
+      }
+      return signupPhone(phone, name, tag, avatarKey);
+    }
+    if ("google".equals(m)) {
+      if (googleCredential == null || googleCredential.isBlank()) {
+        throw new IllegalArgumentException("Missing Google credential");
+      }
+      // Verify token and either link to existing or create a new user, but force gameTag/name from signup.
+      GoogleIdToken idToken = verifyGoogleIdToken(googleCredential);
+      GoogleIdToken.Payload payload = idToken.getPayload();
+      String sub = payload.getSubject();
+      String email = (String) payload.get("email");
+      Boolean emailVerified = (Boolean) payload.get("email_verified");
+      String picture = (String) payload.get("picture");
+      if (email == null || email.isBlank()) throw new IllegalArgumentException("Google account has no email");
+      if (Boolean.FALSE.equals(emailVerified)) throw new IllegalArgumentException("Google email is not verified");
+      email = email.trim().toLowerCase();
+
+      Optional<User> bySub = userRepository.findByGoogleSub(sub);
+      if (bySub.isPresent()) {
+        User u = bySub.get();
+        u.setDisplayName(name);
+        u.setGameTag(tag);
+        if (avatarKey != null) {
+          String a = avatarKey.trim();
+          u.setAvatarKey(a.isEmpty() ? null : a);
+        }
+        if ((u.getProfilePhotoUrl() == null || u.getProfilePhotoUrl().isBlank())
+            && picture != null
+            && !picture.isBlank()) {
+          u.setProfilePhotoUrl(picture);
+        }
+        return ensureSession(userRepository.save(u));
+      }
+
+      Optional<User> byEmail = userRepository.findByEmail(email);
+      if (byEmail.isPresent()) {
+        User u = byEmail.get();
+        u.setGoogleSub(sub);
+        u.setDisplayName(name);
+        u.setGameTag(tag);
+        if (avatarKey != null) {
+          String a = avatarKey.trim();
+          u.setAvatarKey(a.isEmpty() ? null : a);
+        }
+        if ((u.getProfilePhotoUrl() == null || u.getProfilePhotoUrl().isBlank())
+            && picture != null
+            && !picture.isBlank()) {
+          u.setProfilePhotoUrl(picture);
+        }
+        if (u.getAuthToken() == null || u.getAuthToken().isBlank()) {
+          u.setAuthToken(newToken());
+        }
+        return authResponse(userRepository.save(u));
+      }
+
+      User user = new User();
+      user.setGoogleSub(sub);
+      user.setEmail(email);
+      user.setDisplayName(name);
+      user.setGameTag(tag);
+      if (avatarKey != null) {
+        String a = avatarKey.trim();
+        user.setAvatarKey(a.isEmpty() ? null : a);
+      }
+      if (picture != null && !picture.isBlank()) {
+        user.setProfilePhotoUrl(picture);
+      }
+      user.setAuthToken(newToken());
+      user.setCreatedAt(Instant.now());
+      user.setPlanType("FREE");
+      user.setPlanStatus("ACTIVE");
+      return authResponse(userRepository.save(user));
+    }
+
+    throw new IllegalArgumentException("method must be email, phone, or google");
+  }
+
+  private AuthResponse signupEmail(
+      String email, String name, String gameTag, String avatarKey) {
+    Optional<User> existing = userRepository.findByEmail(email);
+    if (existing.isPresent()) {
+      return ensureSession(existing.get());
+    }
+    User u = new User();
+    u.setEmail(email);
+    u.setDisplayName(name);
+    u.setGameTag(gameTag);
+    if (avatarKey != null) {
+      String a = avatarKey.trim();
+      u.setAvatarKey(a.isEmpty() ? null : a);
+    }
+    u.setAuthToken(newToken());
+    u.setCreatedAt(Instant.now());
+    u.setPlanType("FREE");
+    u.setPlanStatus("ACTIVE");
+    return authResponse(userRepository.save(u));
+  }
+
+  private AuthResponse signupPhone(
+      String phone, String name, String gameTag, String avatarKey) {
+    Optional<User> existing = userRepository.findByPhone(phone);
+    if (existing.isPresent()) {
+      return ensureSession(existing.get());
+    }
+    User u = new User();
+    u.setPhone(phone);
+    u.setDisplayName(name);
+    u.setGameTag(gameTag);
+    if (avatarKey != null) {
+      String a = avatarKey.trim();
+      u.setAvatarKey(a.isEmpty() ? null : a);
+    }
+    u.setAuthToken(newToken());
+    u.setCreatedAt(Instant.now());
+    u.setPlanType("FREE");
+    u.setPlanStatus("ACTIVE");
+    return authResponse(userRepository.save(u));
+  }
+
   /**
    * Verifies the Google ID token (GIS credential JWT) and signs the user in or registers them.
    */
@@ -216,6 +395,12 @@ public class AuthService {
       return "Player";
     }
     return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+  }
+
+  private static String normalizeGameTag(String raw) {
+    if (raw == null) return "";
+    String compact = raw.trim().replaceAll("\\s+", "");
+    return compact.replaceAll("[^A-Za-z0-9_]", "");
   }
 
   private String generateUniqueGameTag(String sourceName, String sourceId) {

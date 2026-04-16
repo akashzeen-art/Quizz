@@ -1,5 +1,7 @@
 package com.nserve.quiz.api;
 
+import com.nserve.quiz.dto.AuthIdentifierRequest;
+import com.nserve.quiz.dto.AuthSignupRequest;
 import com.nserve.quiz.dto.GoogleAuthRequest;
 import com.nserve.quiz.dto.LoginRequest;
 import com.nserve.quiz.service.AuthService;
@@ -34,6 +36,44 @@ public class AuthController {
         return ResponseEntity.ok(authService.loginEmail(req.identifier()));
       }
       return ResponseEntity.badRequest().body(Map.of("error", "method must be phone or email"));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
+  }
+
+  @PostMapping("/signup")
+  public ResponseEntity<?> signup(@Valid @RequestBody AuthSignupRequest req) {
+    try {
+      return ResponseEntity.ok(
+          authService.signup(
+              req.method(),
+              req.identifier(),
+              req.gameTag(),
+              req.name(),
+              req.avatarKey(),
+              req.googleCredential()));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    } catch (IllegalStateException e) {
+      return ResponseEntity.status(503).body(Map.of("error", e.getMessage()));
+    } catch (GeneralSecurityException | IOException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", "Could not verify Google sign-in"));
+    }
+  }
+
+  @PostMapping("/login/email")
+  public ResponseEntity<?> loginEmail(@Valid @RequestBody AuthIdentifierRequest req) {
+    try {
+      return ResponseEntity.ok(authService.loginEmailExisting(req.identifier()));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
+  }
+
+  @PostMapping("/login/phone")
+  public ResponseEntity<?> loginPhone(@Valid @RequestBody AuthIdentifierRequest req) {
+    try {
+      return ResponseEntity.ok(authService.loginPhoneExisting(req.identifier()));
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     }

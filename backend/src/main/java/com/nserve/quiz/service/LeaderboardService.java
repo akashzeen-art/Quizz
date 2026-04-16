@@ -109,10 +109,17 @@ public class LeaderboardService {
   }
 
   private LeaderboardEntryDto toEntry(int rank, User u, long totalTimeMs) {
+    String avatarSeed =
+        (u.getAvatarKey() != null && !u.getAvatarKey().isBlank())
+            ? u.getAvatarKey()
+            : ("lb-" + u.getId());
+    String avatarUrl = u.getProfilePhotoUrl();
     return new LeaderboardEntryDto(
         rank,
         u.getId(),
         u.getDisplayName() != null ? u.getDisplayName() : "Player",
+        avatarSeed,
+        avatarUrl,
         u.getTotalScore(),
         u.getWeeklyScore(),
         u.getMonthlyScore(),

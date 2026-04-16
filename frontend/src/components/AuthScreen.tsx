@@ -13,7 +13,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import * as api from '../api/client'
-import { FaceCaptureSheet } from './FaceCaptureSheet'
 import { useApp } from '../context/AppContext'
 import { shouldForceCategoryOnboarding } from '../lib/categoryOnboarding'
 import {
@@ -167,7 +166,6 @@ export function AuthScreen() {
   const { loginWithToken } = useApp()
   const [authMethod, setAuthMethod] = useState<AuthMethod>('choose')
   const [busy, setBusy] = useState(false)
-  const [faceOpen, setFaceOpen] = useState(false)
 
   const [email, setEmail] = useState('')
   const [countryIso, setCountryIso] = useState<CountryCode>(() => guessDefaultCountry())
@@ -387,12 +385,6 @@ export function AuthScreen() {
               setBusy={setBusy}
               loginWithToken={loginWithToken}
               navigate={navigate}
-            />
-            <FaceCaptureSheet
-              open={faceOpen}
-              title="Face login"
-              onClose={() => setFaceOpen(false)}
-              onCapture={onFaceCapture}
             />
           </>
         )}

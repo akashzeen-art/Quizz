@@ -7,6 +7,8 @@ public record LeaderboardEntryDto(
     int rank,
     String userId,
     String displayName,
+    String avatarSeed,
+    String avatarUrl,
     int totalScore,
     int weeklyScore,
     int monthlyScore,

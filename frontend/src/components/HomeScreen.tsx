@@ -141,11 +141,18 @@ export function HomeScreen() {
   const [addCreditsRupees, setAddCreditsRupees] = useState('50')
   const [addCreditsBusy, setAddCreditsBusy] = useState(false)
   const [quizzes, setQuizzes] = useState<QuizDto[] | null>(null)
+  const [eventSection, setEventSection] = useState<'active' | 'upcoming' | 'past'>('upcoming')
   const [leaderboard, setLeaderboard] = useState<
     Awaited<ReturnType<typeof api.fetchLeaderboard>> | null
   >(null)
 
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
+  const currencySymbol =
+    typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('en-us')
+      ? '$'
+      : '₹'
+  const credits = user?.credits ?? 0
+  const cashBalance = Math.floor(credits / 2)
 
   const cal = useMemo(
     () => monthGrid(calendarMonth.getFullYear(), calendarMonth.getMonth()),
@@ -185,6 +192,13 @@ export function HomeScreen() {
       pastSidebar: past.slice(0, 14),
     }
   }, [quizzes])
+
+  const sectionedEvents = useMemo(() => {
+    if (!quizzes) return []
+    if (eventSection === 'active') return quizzes.filter((q) => eventBucket(q) === 'live')
+    if (eventSection === 'past') return quizzes.filter((q) => eventBucket(q) === 'ended')
+    return quizzes.filter((q) => eventBucket(q) === 'upcoming')
+  }, [quizzes, eventSection])
 
   /** Per-day counts for calendar dots (live / upcoming / ended). */
   const dayEventStats = useMemo(() => {
@@ -327,9 +341,20 @@ export function HomeScreen() {
         <div className="relative z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/10 px-3 py-2.5 ring-1 ring-white/15 backdrop-blur-sm">
           <div className="flex min-w-0 items-center gap-2 text-white">
             <Coins className="h-5 w-5 shrink-0 text-amber-200" aria-hidden />
-            <span className="truncate text-sm font-semibold tabular-nums">
-              {user?.credits ?? 0} credits
-            </span>
+            <div className="truncate">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-white/70">
+                Cash Balance
+              </p>
+              <p className="truncate tabular-nums">
+                <span className="text-lg font-extrabold">
+                  {currencySymbol}
+                  {cashBalance.toLocaleString()}
+                </span>{' '}
+                <span className="text-xs font-semibold text-white/80">
+                  ({credits.toLocaleString()} credits)
+                </span>
+              </p>
+            </div>
           </div>
           <button
             type="button"
@@ -412,35 +437,53 @@ export function HomeScreen() {
           ))}
         </section>
 
-        <section className="mb-2 flex items-center justify-between">
-          <h2 className="text-base font-bold text-slate-900">Upcoming events</h2>
-          <button
-            type="button"
-            className="flex items-center gap-1 text-xs font-semibold text-violet-600"
-            onClick={() => navigate('/events')}
-          >
-            See all
-            <ChevronRight className="h-3 w-3" />
-          </button>
+        <section className="mb-3">
+          <div className="flex items-center gap-2 rounded-full bg-slate-100/90 p-1.5">
+            {[
+              { id: 'active', label: 'Active Quiz' },
+              { id: 'upcoming', label: 'Upcoming Quiz' },
+              { id: 'past', label: 'Past Quiz' },
+            ].map((s) => {
+              const active = eventSection === s.id
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setEventSection(s.id as 'active' | 'upcoming' | 'past')}
+                  className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                    active
+                      ? 'bg-white text-violet-700 shadow-sm ring-1 ring-violet-200'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              )
+            })}
+          </div>
         </section>
 
         <div
           data-tour="tour-events"
-          className="flex gap-4 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="space-y-3 pb-4"
         >
           {!quizzes ? (
             <>
-              <Skeleton className="h-64 min-w-[280px] shrink-0 rounded-3xl" />
-              <Skeleton className="h-64 min-w-[280px] shrink-0 rounded-3xl" />
+              <Skeleton className="h-40 w-full rounded-3xl" />
+              <Skeleton className="h-40 w-full rounded-3xl" />
             </>
+          ) : sectionedEvents.length === 0 ? (
+            <div className="app-card flex w-full items-center justify-center rounded-2xl p-6 text-center text-xs font-semibold text-slate-500">
+              No quizzes in this section yet.
+            </div>
           ) : (
-            quizzes.map((q) => (
+            sectionedEvents.map((q) => (
               <motion.div
                 key={q.id}
                 role="button"
                 tabIndex={0}
                 whileTap={{ scale: 0.98 }}
-                className="min-w-[280px] shrink-0 cursor-pointer overflow-hidden rounded-3xl border border-slate-200/60 bg-white text-left shadow-[0_12px_40px_-12px_rgba(15,23,42,0.15)] ring-1 ring-white/80 transition hover:shadow-xl"
+                className="w-full cursor-pointer overflow-hidden rounded-2xl border border-slate-200/60 bg-white text-left shadow-[0_10px_30px_-12px_rgba(15,23,42,0.15)] ring-1 ring-white/80 transition hover:shadow-lg"
                 onClick={() => {
                   if (!canJoinQuiz(q)) {
                     if (eventBucket(q) === 'ended')
@@ -467,7 +510,7 @@ export function HomeScreen() {
                   <img
                     src={`https://picsum.photos/seed/event-${q.id}/560/200`}
                     alt=""
-                    className="h-36 w-full object-cover"
+                    className="h-28 w-full object-cover"
                   />
                   <span className="absolute left-3 top-3 rounded-lg bg-white/95 px-2 py-1 text-[10px] font-bold uppercase text-violet-700 shadow">
                     {eventBucket(q) === 'live'
@@ -495,17 +538,17 @@ export function HomeScreen() {
                     <Bookmark className="h-4 w-4" aria-hidden />
                   </span>
                 </div>
-                <div className="p-4">
-                  <div className="line-clamp-1 text-base font-bold text-slate-900">
+                <div className="p-3">
+                  <div className="line-clamp-1 text-sm font-bold text-slate-900">
                     {q.title}
                   </div>
                   <p className="mt-1 line-clamp-2 text-xs text-slate-500">{q.description}</p>
-                  <div className="mt-3 flex items-center justify-between">
+                  <div className="mt-2.5 flex items-center justify-between">
                     <div className="flex -space-x-2">
                       {[1, 2, 3].map((i) => (
                         <div
                           key={i}
-                          className="h-8 w-8 rounded-full border-2 border-white bg-gradient-to-br from-violet-400 to-fuchsia-500"
+                          className="h-7 w-7 rounded-full border-2 border-white bg-gradient-to-br from-violet-400 to-fuchsia-500"
                         />
                       ))}
                     </div>

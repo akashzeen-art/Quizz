@@ -15,8 +15,6 @@ public class UserMapper {
         u.getId(),
         name,
         u.getGameTag(),
-        u.getFaceEncoding() != null && !u.getFaceEncoding().isEmpty(),
-        u.isFaceLoginEnabled(),
         u.getEmail(),
         u.getPhone(),
         u.getTotalScore(),

@@ -2,7 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AppProvider, useApp } from './context/AppContext'
 import { SplashScreen } from './components/SplashScreen'
-import { AuthScreen } from './components/AuthScreen'
+import { AuthFlowScreen } from './components/AuthFlowScreen'
 import { CategorySelection } from './components/CategorySelection'
 import { HomeScreen } from './components/HomeScreen'
 import { QuizLoadingScreen } from './components/QuizLoadingScreen'
@@ -59,7 +59,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<SplashScreen />} />
       <Route path="/admin/*" element={<AdminApp />} />
-      <Route path="/auth" element={<AuthScreen />} />
+      <Route path="/auth" element={<AuthFlowScreen />} />
       <Route
         path="/categories"
         element={

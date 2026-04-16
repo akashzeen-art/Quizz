@@ -54,6 +54,11 @@ export function WalletScreen() {
 
   const credits = user?.credits ?? 0
   const totalSpent = user?.totalSpent ?? 0
+  const currencySymbol =
+    typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('en-us')
+      ? '$'
+      : '₹'
+  const cashBalance = Math.floor(credits / 2)
 
   return (
     <div className="app-screen min-h-[100dvh] pb-bottom-nav">
@@ -81,11 +86,18 @@ export function WalletScreen() {
           animate={{ opacity: 1, y: 0 }}
           className="relative mt-5 rounded-3xl border border-white/20 bg-white/10 p-5 backdrop-blur-sm"
         >
-          <p className="text-xs font-semibold uppercase tracking-widest text-white/60">Balance</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-white/60">Cash Balance</p>
           <div className="mt-1 flex items-end gap-2">
             <Coins className="mb-1 h-7 w-7 text-amber-300" />
-            <span className="text-5xl font-extrabold tabular-nums text-white">{credits.toLocaleString()}</span>
-            <span className="mb-1 text-lg font-semibold text-white/60">credits</span>
+            <p className="tabular-nums leading-none">
+              <span className="text-5xl font-extrabold text-white">
+                {currencySymbol}
+                {cashBalance.toLocaleString()}
+              </span>{' '}
+              <span className="text-2xl font-semibold text-white/75">
+                ({credits.toLocaleString()} credits)
+              </span>
+            </p>
           </div>
           <p className="mt-2 text-xs text-white/50">Lifetime spent: {totalSpent.toLocaleString()} credits</p>
 

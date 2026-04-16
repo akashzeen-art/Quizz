@@ -32,9 +32,7 @@ app:
     quiz-start-cost: ${WALLET_QUIZ_START_COST:10}
     # How long GET /quiz/{id} + submit-answer stay authorized after deduct.
     entitlement-hours: ${WALLET_ENTITLEMENT_HOURS:24}
-  face:
-    # Python face service base URL (FastAPI). Keep separate from Spring app.
-    service-url: ${FACE_SERVICE_URL:http://localhost:8001}
+  service-url: ${FACE_SERVICE_URL:http://localhost:8001}
   admin:
     active-window-minutes: ${ADMIN_ACTIVE_MINUTES:15}
     # Only used when no admin exists yet (first boot). Change in production via env.
