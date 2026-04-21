@@ -8,7 +8,6 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // Function form required by Vite 8 / rolldown
         manualChunks(id: string) {
           if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
             return 'vendor-react'
