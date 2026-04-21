@@ -541,7 +541,7 @@ export function HomeScreen() {
                   <div className="line-clamp-1 text-sm font-bold text-slate-900">
                     {q.title}
                   </div>
-                  <p className="mt-1 line-clamp-2 text-xs text-slate-500">{q.description}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-slate-500">{q.description?.toLowerCase().startsWith('csv imported') ? '' : q.description}</p>
                   <div className="mt-2.5 flex items-center justify-between">
                     <div className="flex -space-x-2">
                       {[1, 2, 3].map((i) => (
