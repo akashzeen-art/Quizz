@@ -270,14 +270,6 @@ export default function AdminQuizList() {
         <button
           type="button"
           disabled={busy != null || selectedCount === 0}
-          onClick={() => void bulkPush('draft')}
-          className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800 disabled:opacity-40"
-        >
-          Push Selected to Draft
-        </button>
-        <button
-          type="button"
-          disabled={busy != null || selectedCount === 0}
           onClick={() => void bulkPush('upcoming')}
           className="rounded-xl border border-amber-700/60 bg-amber-950/30 px-4 py-2 text-sm font-bold text-amber-200 hover:bg-amber-950/50 disabled:opacity-40"
         >
@@ -308,7 +300,6 @@ export default function AdminQuizList() {
           Clear selection
         </button>
       </div>
-      <QuizTable title="Draft Quizzes" items={sections.draft} />
       <QuizTable title="Upcoming Quizzes" items={sections.upcoming} />
       <QuizTable title="Live Quizzes" items={sections.live} />
     </div>
