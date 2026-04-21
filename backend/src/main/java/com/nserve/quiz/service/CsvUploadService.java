@@ -171,8 +171,8 @@ public class CsvUploadService {
       }
       Quiz quiz = new Quiz();
       quiz.setTitle(set.title);
-      quiz.setDescription("CSV imported draft");
-      quiz.setStatus(QuizStatus.draft);
+      quiz.setDescription("");
+      quiz.setStatus(QuizStatus.live);
       quiz.setCategory(category);
       quiz.setSecondsPerQuestion(15);
       quiz.setQuestionIds(qids);
