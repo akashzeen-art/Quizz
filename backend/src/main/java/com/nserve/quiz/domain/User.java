@@ -68,12 +68,30 @@ public class User {
   /** Consecutive wrong answers in current session (for booster trigger). */
   private int consecutiveWrong;
 
+  /** 128-d face embedding used for Face ID login (optional). */
+  private List<Double> faceEncoding;
+
+  /** Admin kill-switch for Face ID login when a face is registered. */
+  private boolean faceLoginEnabled = true;
+
+  /** BCrypt hash for 4-digit quick login PIN. */
+  private String pinHash;
+
+  /** Selected security recovery question. */
+  private String securityQuestion;
+
+  /** BCrypt hash of normalized security answer. */
+  private String securityAnswerHash;
+
   /** yyyy-MM-dd in UTC — reset dayScore when day changes */
   private String dayScoreDate;
 
   private List<String> playedDates = new ArrayList<>();
 
   private Instant createdAt;
+
+  /** Last successful login time (OTP/PIN/google/email). */
+  private Instant lastLogin;
 
   /** Last API activity (for admin “active” status). */
   private Instant lastActiveAt;
@@ -247,6 +265,16 @@ public class User {
   public int getConsecutiveWrong() { return consecutiveWrong; }
   public void setConsecutiveWrong(int consecutiveWrong) { this.consecutiveWrong = consecutiveWrong; }
 
+  public List<Double> getFaceEncoding() { return faceEncoding; }
+  public void setFaceEncoding(List<Double> faceEncoding) { this.faceEncoding = faceEncoding; }
+  public boolean isFaceLoginEnabled() { return faceLoginEnabled; }
+  public void setFaceLoginEnabled(boolean faceLoginEnabled) { this.faceLoginEnabled = faceLoginEnabled; }
+  public String getPinHash() { return pinHash; }
+  public void setPinHash(String pinHash) { this.pinHash = pinHash; }
+  public String getSecurityQuestion() { return securityQuestion; }
+  public void setSecurityQuestion(String securityQuestion) { this.securityQuestion = securityQuestion; }
+  public String getSecurityAnswerHash() { return securityAnswerHash; }
+  public void setSecurityAnswerHash(String securityAnswerHash) { this.securityAnswerHash = securityAnswerHash; }
 
   public String getDayScoreDate() {
     return dayScoreDate;
@@ -278,5 +306,13 @@ public class User {
 
   public void setLastActiveAt(Instant lastActiveAt) {
     this.lastActiveAt = lastActiveAt;
+  }
+
+  public Instant getLastLogin() {
+    return lastLogin;
+  }
+
+  public void setLastLogin(Instant lastLogin) {
+    this.lastLogin = lastLogin;
   }
 }

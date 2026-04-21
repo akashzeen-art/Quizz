@@ -11,6 +11,14 @@ public record AuthSignupRequest(
     @NotBlank String name,
     /** Optional avatar seed key (Dicebear). */
     String avatarKey,
+    /** Optional quick-login PIN (exactly 4 digits). */
+    String pin,
+    /** Optional security recovery question key/text. */
+    String securityQuestion,
+    /** Optional recovery answer in plaintext (stored hashed). */
+    String securityAnswer,
+    /** Optional 128-d embedding returned by face service. */
+    List<Double> faceEncoding,
     /** For google signup/login flows. */
     String googleCredential) {}
 

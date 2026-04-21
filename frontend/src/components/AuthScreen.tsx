@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion'
 import {
   ArrowRight,
-  Camera,
   ChevronDown,
   ChevronLeft,
   Globe2,
@@ -252,17 +251,6 @@ export function AuthScreen() {
     }
   }
 
-  async function onFaceCapture(image: Blob) {
-    try {
-      const res = await api.faceLogin(image)
-      loginWithToken(res.token, res.user)
-      setFaceOpen(false)
-      navigate(shouldForceCategoryOnboarding(res.user) ? '/categories' : '/home', { replace: true })
-    } catch (err) {
-      toast.error(api.getApiErrorMessage(err))
-    }
-  }
-
   return (
     <div className="app-screen relative min-h-[100dvh] overflow-hidden safe-pt-header">
       <div
@@ -349,22 +337,6 @@ export function AuthScreen() {
                   <span className="text-xs font-medium text-slate-500">
                     Continue with mobile number & country code
                   </span>
-                </span>
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  setFaceOpen(true)
-                }}
-                className="app-card flex w-full items-center gap-4 border-slate-200/90 p-4 text-left shadow-md transition hover:border-violet-200 hover:bg-violet-50/40 disabled:opacity-50"
-              >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                  <Camera className="h-6 w-6" />
-                </span>
-                <span>
-                  <span className="block text-base font-bold text-slate-900">Login with Face</span>
-                  <span className="text-xs font-medium text-slate-500">Use your camera to sign in</span>
                 </span>
               </button>
             </div>

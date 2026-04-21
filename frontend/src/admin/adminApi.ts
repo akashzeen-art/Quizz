@@ -186,6 +186,11 @@ export async function createAdminQuiz(body: unknown) {
   return data
 }
 
+export async function resetAllData() {
+  const { data } = await adminApi.delete<{ deleted: Record<string, number>; kept: string }>('/admin/reset')
+  return data
+}
+
 export function adminApiError(err: unknown): string {
   if (isAxiosError(err)) {
     const d = err.response?.data as { error?: string } | undefined

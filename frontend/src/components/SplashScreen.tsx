@@ -17,7 +17,7 @@ export function SplashScreen() {
   const rafRef = useRef<number | null>(null)
   const startRef = useRef<number>(0)
 
-  const TOTAL_MS = 5000
+  const TOTAL_MS = 2000
   const MONEY_START = 10_000_000
   const MONEY_END = 52_348_920
 
@@ -184,7 +184,7 @@ export function SplashScreen() {
 
         <div className="w-full max-w-sm shrink-0 pb-12">
           <p className="text-center text-[11px] font-semibold tracking-wide text-white/45">
-            Tip: Play quizzes daily to climb the leaderboard!
+            Tip: Complete your profile setup for a better game experience.
           </p>
         </div>
       </div>

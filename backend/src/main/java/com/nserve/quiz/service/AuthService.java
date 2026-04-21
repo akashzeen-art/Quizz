@@ -12,8 +12,12 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +28,15 @@ public class AuthService {
   private final UserMapper userMapper;
   private final WalletService walletService;
   private final String googleClientId;
+  private final Map<String, RecoveryToken> pinRecoveryTokens = new ConcurrentHashMap<>();
+  private static final long PIN_RECOVERY_TTL_MS = 5 * 60_000L;
+  private static final Set<String> ALLOWED_SECURITY_QUESTIONS =
+      Set.of(
+          "What is your pet's name?",
+          "What is your birth city?",
+          "What was your first school name?",
+          "What is your mother's maiden name?",
+          "What was your childhood nickname?");
 
   public AuthService(
       UserRepository userRepository,
@@ -63,6 +76,112 @@ public class AuthService {
       user = userRepository.save(user);
     }
     return authResponse(user);
+  }
+
+  public record OtpLoginResult(AuthResponse auth, boolean newUser) {}
+
+  /** Sign in or register by phone after OTP verification. */
+  public OtpLoginResult loginPhoneAfterOtp(String rawPhone) {
+    String phone = normalizePhone(rawPhone);
+    if (phone.length() < 8 || phone.length() > 15) {
+      throw new IllegalArgumentException("Enter a valid phone number with country code");
+    }
+    final boolean[] created = new boolean[] {false};
+    User user =
+        userRepository
+            .findByPhone(phone)
+            .orElseGet(
+                () -> {
+                  created[0] = true;
+                  User u = new User();
+                  u.setPhone(phone);
+                  u.setDisplayName("Player " + phone.substring(Math.max(0, phone.length() - 4)));
+                  u.setGameTag(generateUniqueGameTag(u.getDisplayName(), phone));
+                  u.setAuthToken(newToken());
+                  u.setCreatedAt(Instant.now());
+                  u.setPlanType("FREE");
+                  u.setPlanStatus("ACTIVE");
+                  return userRepository.save(u);
+                });
+    if (user.getAuthToken() == null || user.getAuthToken().isBlank()) {
+      user.setAuthToken(newToken());
+      user = userRepository.save(user);
+    }
+    return new OtpLoginResult(authResponse(user), created[0]);
+  }
+
+  public AuthResponse loginWithPhonePin(String rawPhone, String pin) {
+    String phone = normalizePhone(rawPhone);
+    validatePin(pin);
+    User user =
+        userRepository
+            .findByPhone(phone)
+            .orElseThrow(() -> new IllegalArgumentException("No account found. Please sign up."));
+    if (user.getPinHash() == null || user.getPinHash().isBlank()) {
+      throw new IllegalArgumentException("PIN is not set for this account");
+    }
+    if (!BCrypt.checkpw(pin.trim(), user.getPinHash())) {
+      throw new IllegalArgumentException("Wrong PIN");
+    }
+    if (user.getAuthToken() == null || user.getAuthToken().isBlank()) {
+      user.setAuthToken(newToken());
+      user = userRepository.save(user);
+    }
+    return authResponse(user);
+  }
+
+  public UserProfileDto setPin(User current, String pin) {
+    validatePin(pin);
+    User user = userRepository.findById(current.getId()).orElse(current);
+    user.setPinHash(BCrypt.hashpw(pin.trim(), BCrypt.gensalt()));
+    return userMapper.toDto(userRepository.save(user));
+  }
+
+  public UserProfileDto setSecurityQuestion(User current, String question, String answer) {
+    String q = normalizeSecurityQuestion(question);
+    String normalizedAnswer = normalizeSecurityAnswer(answer);
+    User user = userRepository.findById(current.getId()).orElse(current);
+    user.setSecurityQuestion(q);
+    user.setSecurityAnswerHash(BCrypt.hashpw(normalizedAnswer, BCrypt.gensalt()));
+    return userMapper.toDto(userRepository.save(user));
+  }
+
+  public String verifyForgotPinSecurity(String rawPhone, String question, String answer) {
+    String phone = normalizePhone(rawPhone);
+    User user =
+        userRepository
+            .findByPhone(phone)
+            .orElseThrow(() -> new IllegalArgumentException("No account found for this phone"));
+    String q = normalizeSecurityQuestion(question);
+    if (user.getSecurityQuestion() == null || user.getSecurityAnswerHash() == null) {
+      throw new IllegalArgumentException("Security question is not set for this account");
+    }
+    if (!user.getSecurityQuestion().equals(q)) {
+      throw new IllegalArgumentException("Wrong security question");
+    }
+    String a = normalizeSecurityAnswer(answer);
+    if (!BCrypt.checkpw(a, user.getSecurityAnswerHash())) {
+      throw new IllegalArgumentException("Wrong answer");
+    }
+    String token = newToken();
+    pinRecoveryTokens.put(token, new RecoveryToken(user.getId(), System.currentTimeMillis() + PIN_RECOVERY_TTL_MS));
+    return token;
+  }
+
+  public void resetPin(String recoveryToken, String pin) {
+    validatePin(pin);
+    String token = recoveryToken == null ? "" : recoveryToken.trim();
+    if (token.isEmpty()) throw new IllegalArgumentException("Recovery token is required");
+    RecoveryToken recovery = pinRecoveryTokens.remove(token);
+    if (recovery == null || System.currentTimeMillis() > recovery.expiresAtMs()) {
+      throw new IllegalArgumentException("Recovery session expired. Start forgot PIN again.");
+    }
+    User user =
+        userRepository
+            .findById(recovery.userId())
+            .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+    user.setPinHash(BCrypt.hashpw(pin.trim(), BCrypt.gensalt()));
+    userRepository.save(user);
   }
 
   public AuthResponse loginEmail(String rawEmail) {
@@ -135,6 +254,10 @@ public class AuthService {
       String rawGameTag,
       String rawName,
       String avatarKey,
+      String pin,
+      String securityQuestion,
+      String securityAnswer,
+      java.util.List<Double> faceEncoding,
       String googleCredential)
       throws GeneralSecurityException, IOException {
     String m = method == null ? "" : method.trim().toLowerCase();
@@ -147,14 +270,14 @@ public class AuthService {
     if ("email".equals(m)) {
       String email = identifier == null ? "" : identifier.trim().toLowerCase();
       if (email.isBlank() || !email.contains("@")) throw new IllegalArgumentException("Enter a valid email address");
-      return signupEmail(email, name, tag, avatarKey);
+      return signupEmail(email, name, tag, avatarKey, pin, securityQuestion, securityAnswer, faceEncoding);
     }
     if ("phone".equals(m)) {
       String phone = normalizePhone(identifier == null ? "" : identifier);
       if (phone.length() < 8 || phone.length() > 15) {
         throw new IllegalArgumentException("Enter a valid phone number with country code");
       }
-      return signupPhone(phone, name, tag, avatarKey);
+      return signupPhone(phone, name, tag, avatarKey, pin, securityQuestion, securityAnswer, faceEncoding);
     }
     if ("google".equals(m)) {
       if (googleCredential == null || googleCredential.isBlank()) {
@@ -185,6 +308,10 @@ public class AuthService {
             && !picture.isBlank()) {
           u.setProfilePhotoUrl(picture);
         }
+        if (faceEncoding != null && !faceEncoding.isEmpty()) {
+          u.setFaceEncoding(new java.util.ArrayList<>(faceEncoding));
+          u.setFaceLoginEnabled(true);
+        }
         return ensureSession(userRepository.save(u));
       }
 
@@ -202,6 +329,10 @@ public class AuthService {
             && picture != null
             && !picture.isBlank()) {
           u.setProfilePhotoUrl(picture);
+        }
+        if (faceEncoding != null && !faceEncoding.isEmpty()) {
+          u.setFaceEncoding(new java.util.ArrayList<>(faceEncoding));
+          u.setFaceLoginEnabled(true);
         }
         if (u.getAuthToken() == null || u.getAuthToken().isBlank()) {
           u.setAuthToken(newToken());
@@ -221,6 +352,11 @@ public class AuthService {
       if (picture != null && !picture.isBlank()) {
         user.setProfilePhotoUrl(picture);
       }
+      if (faceEncoding != null && !faceEncoding.isEmpty()) {
+        user.setFaceEncoding(new java.util.ArrayList<>(faceEncoding));
+        user.setFaceLoginEnabled(true);
+      }
+      applyPinAndSecurity(user, pin, securityQuestion, securityAnswer);
       user.setAuthToken(newToken());
       user.setCreatedAt(Instant.now());
       user.setPlanType("FREE");
@@ -232,7 +368,14 @@ public class AuthService {
   }
 
   private AuthResponse signupEmail(
-      String email, String name, String gameTag, String avatarKey) {
+      String email,
+      String name,
+      String gameTag,
+      String avatarKey,
+      String pin,
+      String securityQuestion,
+      String securityAnswer,
+      java.util.List<Double> faceEncoding) {
     Optional<User> existing = userRepository.findByEmail(email);
     if (existing.isPresent()) {
       return ensureSession(existing.get());
@@ -245,6 +388,11 @@ public class AuthService {
       String a = avatarKey.trim();
       u.setAvatarKey(a.isEmpty() ? null : a);
     }
+    if (faceEncoding != null && !faceEncoding.isEmpty()) {
+      u.setFaceEncoding(new java.util.ArrayList<>(faceEncoding));
+      u.setFaceLoginEnabled(true);
+    }
+    applyPinAndSecurity(u, pin, securityQuestion, securityAnswer);
     u.setAuthToken(newToken());
     u.setCreatedAt(Instant.now());
     u.setPlanType("FREE");
@@ -253,7 +401,14 @@ public class AuthService {
   }
 
   private AuthResponse signupPhone(
-      String phone, String name, String gameTag, String avatarKey) {
+      String phone,
+      String name,
+      String gameTag,
+      String avatarKey,
+      String pin,
+      String securityQuestion,
+      String securityAnswer,
+      java.util.List<Double> faceEncoding) {
     Optional<User> existing = userRepository.findByPhone(phone);
     if (existing.isPresent()) {
       return ensureSession(existing.get());
@@ -266,6 +421,11 @@ public class AuthService {
       String a = avatarKey.trim();
       u.setAvatarKey(a.isEmpty() ? null : a);
     }
+    if (faceEncoding != null && !faceEncoding.isEmpty()) {
+      u.setFaceEncoding(new java.util.ArrayList<>(faceEncoding));
+      u.setFaceLoginEnabled(true);
+    }
+    applyPinAndSecurity(u, pin, securityQuestion, securityAnswer);
     u.setAuthToken(newToken());
     u.setCreatedAt(Instant.now());
     u.setPlanType("FREE");
@@ -376,6 +536,8 @@ public class AuthService {
   }
 
   private AuthResponse authResponse(User user) {
+    user.setLastLogin(Instant.now());
+    user = userRepository.save(user);
     walletService.grantStarterCreditsIfNeeded(user);
     UserProfileDto dto = userMapper.toDto(user);
     return new AuthResponse(user.getAuthToken(), dto);
@@ -389,6 +551,43 @@ public class AuthService {
   private static String normalizePhone(String raw) {
     return raw.replaceAll("\\D", "");
   }
+
+  private static void validatePin(String pin) {
+    String p = pin == null ? "" : pin.trim();
+    if (!p.matches("\\d{4}")) {
+      throw new IllegalArgumentException("PIN must be exactly 4 digits");
+    }
+  }
+
+  private static String normalizeSecurityAnswer(String answer) {
+    String a = answer == null ? "" : answer.trim().toLowerCase().replaceAll("\\s+", " ");
+    if (a.length() < 2) throw new IllegalArgumentException("Security answer is required");
+    return a;
+  }
+
+  private static String normalizeSecurityQuestion(String question) {
+    String q = question == null ? "" : question.trim();
+    if (!ALLOWED_SECURITY_QUESTIONS.contains(q)) {
+      throw new IllegalArgumentException("Please choose a valid security question");
+    }
+    return q;
+  }
+
+  private static void applyPinAndSecurity(User u, String pin, String securityQuestion, String securityAnswer) {
+    if (pin != null && !pin.trim().isEmpty()) {
+      validatePin(pin);
+      u.setPinHash(BCrypt.hashpw(pin.trim(), BCrypt.gensalt()));
+    }
+    if ((securityQuestion != null && !securityQuestion.trim().isEmpty())
+        || (securityAnswer != null && !securityAnswer.trim().isEmpty())) {
+      String q = normalizeSecurityQuestion(securityQuestion);
+      String a = normalizeSecurityAnswer(securityAnswer);
+      u.setSecurityQuestion(q);
+      u.setSecurityAnswerHash(BCrypt.hashpw(a, BCrypt.gensalt()));
+    }
+  }
+
+  private record RecoveryToken(String userId, long expiresAtMs) {}
 
   private static String capitalize(String s) {
     if (s == null || s.isEmpty()) {

@@ -1,18 +1,21 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
 import { Toaster } from 'sonner'
 import { AppProvider, useApp } from './context/AppContext'
 import { SplashScreen } from './components/SplashScreen'
-import { AuthFlowScreen } from './components/AuthFlowScreen'
-import { CategorySelection } from './components/CategorySelection'
-import { HomeScreen } from './components/HomeScreen'
-import { QuizLoadingScreen } from './components/QuizLoadingScreen'
-import { QuizPlayScreen } from './components/QuizPlayScreen'
-import { EventsScreen } from './components/EventsScreen'
-import { LeaderboardScreen } from './components/LeaderboardScreen'
-import { ProfileScreen } from './components/ProfileScreen'
-import { WalletScreen } from './components/WalletScreen'
 import { shouldForceCategoryOnboarding } from './lib/categoryOnboarding'
-import { AdminApp } from './admin/AdminApp'
+
+// Lazy-loaded routes — split into separate chunks for faster initial load
+const AuthFlowScreen   = lazy(() => import('./components/AuthFlowScreen').then(m => ({ default: m.AuthFlowScreen })))
+const CategorySelection = lazy(() => import('./components/CategorySelection').then(m => ({ default: m.CategorySelection })))
+const HomeScreen       = lazy(() => import('./components/HomeScreen').then(m => ({ default: m.HomeScreen })))
+const QuizLoadingScreen = lazy(() => import('./components/QuizLoadingScreen').then(m => ({ default: m.QuizLoadingScreen })))
+const QuizPlayScreen   = lazy(() => import('./components/QuizPlayScreen').then(m => ({ default: m.QuizPlayScreen })))
+const EventsScreen     = lazy(() => import('./components/EventsScreen').then(m => ({ default: m.EventsScreen })))
+const LeaderboardScreen = lazy(() => import('./components/LeaderboardScreen').then(m => ({ default: m.LeaderboardScreen })))
+const ProfileScreen    = lazy(() => import('./components/ProfileScreen').then(m => ({ default: m.ProfileScreen })))
+const WalletScreen     = lazy(() => import('./components/WalletScreen').then(m => ({ default: m.WalletScreen })))
+const AdminApp         = lazy(() => import('./admin/AdminApp').then(m => ({ default: m.AdminApp })))
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { token, loading } = useApp()
@@ -147,7 +150,9 @@ export default function App() {
   return (
     <AppProvider>
       <BrowserRouter>
-        <AppRoutes />
+        <Suspense fallback={<div className="app-screen flex min-h-[100dvh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" /></div>}>
+          <AppRoutes />
+        </Suspense>
         <Toaster
           position="top-center"
           richColors

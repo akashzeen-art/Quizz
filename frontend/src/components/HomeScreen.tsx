@@ -249,7 +249,6 @@ export function HomeScreen() {
           setQuizzes(q)
           setLeaderboard(lb)
         }
-        void refreshProfile()
       } catch {
         if (!cancelled) toast.error('Could not load quizzes')
       }

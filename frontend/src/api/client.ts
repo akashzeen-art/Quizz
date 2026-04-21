@@ -88,6 +88,12 @@ export function normalizeUserProfile(raw: unknown): UserProfileDto {
       r.gameTag != null && String(r.gameTag).trim() !== ''
         ? String(r.gameTag).trim()
         : undefined,
+    pinSet: Boolean(r.pinSet ?? false),
+    securityQuestionSet: Boolean(r.securityQuestionSet ?? false),
+    securityQuestion:
+      r.securityQuestion != null && String(r.securityQuestion).trim() !== ''
+        ? String(r.securityQuestion).trim()
+        : undefined,
     email: r.email != null ? String(r.email) : undefined,
     phone: r.phone != null ? String(r.phone) : undefined,
     totalScore: Number(r.totalScore ?? 0),
@@ -114,6 +120,354 @@ export function normalizeUserProfile(raw: unknown): UserProfileDto {
     profileUpdatedAt:
       r.profileUpdatedAt != null ? String(r.profileUpdatedAt) : undefined,
   }
+}
+
+/** Image URL for header / profile circle: gallery first, else Dicebear from {@code avatarKey}. */
+export function resolveProfileImageUrl(user: UserProfileDto): string | undefined {
+  const photo = user.profilePhotoUrl?.trim()
+  if (photo) {
+    if (photo.startsWith('http://') || photo.startsWith('https://')) return photo
+    return photo.startsWith('/') ? photo : `/${photo}`
+  }
+  const key = user.avatarKey?.trim()
+  if (key) {
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(key)}`
+  }
+  return undefined
+}
+
+export type ProfileUpdatePayload = {
+  displayName: string
+  gameTag: string
+  /** Empty string clears the preset avatar on the server. */
+  avatarKey: string
+  profilePhotoUrl: string | null
+  clearCustomPhoto: boolean
+}
+
+export async function updateProfile(payload: ProfileUpdatePayload) {
+  const { data } = await api.put<unknown>('/user/profile', payload)
+  return normalizeUserProfile(data)
+}
+
+/** Saves the file on disk and updates the user in MongoDB; returns the latest profile. */
+export async function uploadProfilePhoto(file: File) {
+  const fd = new FormData()
+  fd.append('file', file)
+  const { data } = await api.post<unknown>('/user/profile/photo', fd)
+  return normalizeUserProfile(data)
+}
+
+export async function loginEmail(identifier: string) {
+  const { data } = await api.post<{ token: string; user: unknown }>(
+    '/auth/login',
+    { identifier, method: 'email' },
+  )
+  return { token: data.token, user: normalizeUserProfile(data.user) }
+}
+
+export async function loginPhone(phoneDigits: string) {
+  const { data } = await api.post<{ token: string; user: unknown }>(
+    '/auth/login',
+    { identifier: phoneDigits, method: 'phone' },
+  )
+  return { token: data.token, user: normalizeUserProfile(data.user) }
+}
+
+export async function loginEmailExisting(identifier: string) {
+  const { data } = await api.post<{ token: string; user: unknown }>(
+    '/auth/login/email',
+    { identifier },
+  )
+  return { token: data.token, user: normalizeUserProfile(data.user) }
+}
+
+export async function loginPhoneExisting(phoneDigits: string) {
+  const { data } = await api.post<{ token: string; user: unknown }>(
+    '/auth/login/phone',
+    { identifier: phoneDigits },
+  )
+  return { token: data.token, user: normalizeUserProfile(data.user) }
+}
+
+export async function sendOtp(phone: string) {
+  const { data } = await api.post<{ sent: boolean }>('/auth/send-otp', { phone })
+  return data
+}
+
+export async function verifyOtp(phone: string, code: string) {
+  const { data } = await api.post<{ token: string; user: unknown; newUser: boolean }>(
+    '/auth/verify-otp',
+    { phone, code },
+  )
+  return {
+    token: data.token,
+    user: normalizeUserProfile(data.user),
+    newUser: Boolean(data.newUser),
+  }
+}
+
+export async function verifyPin(phone: string, pin: string) {
+  const { data } = await api.post<{ token: string; user: unknown }>('/auth/verify-pin', { phone, pin })
+  return { token: data.token, user: normalizeUserProfile(data.user) }
+}
+
+export async function setPin(pin: string) {
+  const { data } = await api.post<unknown>('/auth/set-pin', { pin })
+  return normalizeUserProfile(data)
+}
+
+export async function setSecurityQuestion(question: string, answer: string) {
+  const { data } = await api.post<unknown>('/auth/security-question', { question, answer })
+  return normalizeUserProfile(data)
+}
+
+export async function forgotPinSendOtp(phone: string) {
+  const { data } = await api.post<{ sent: boolean }>('/auth/forgot-pin/send-otp', { phone })
+  return data
+}
+
+export async function forgotPinVerify(phone: string, code: string, question: string, answer: string) {
+  const { data } = await api.post<{ verified: boolean; recoveryToken: string }>('/auth/forgot-pin/verify', {
+    phone,
+    code,
+    question,
+    answer,
+  })
+  return data
+}
+
+export async function resetPin(recoveryToken: string, pin: string) {
+  const { data } = await api.post<{ reset: boolean }>('/auth/reset-pin', { recoveryToken, pin })
+  return data
+}
+
+/** Google Identity Services JWT → backend verifies and returns session token. */
+export async function loginWithGoogle(credential: string) {
+  const { data } = await api.post<{ token: string; user: unknown }>(
+    '/auth/google',
+    { credential },
+  )
+  return { token: data.token, user: normalizeUserProfile(data.user) }
+}
+
+export async function signup(payload: {
+  method: 'email' | 'phone' | 'google'
+  identifier?: string
+  gameTag: string
+  name: string
+  avatarKey?: string
+  pin?: string
+  securityQuestion?: string
+  securityAnswer?: string
+  googleCredential?: string
+}) {
+  const { data } = await api.post<{ token: string; user: unknown }>('/auth/signup', payload)
+  return { token: data.token, user: normalizeUserProfile(data.user) }
+}
+
+const LOCATION_FALLBACK_KEY = 'nserve_user_location'
+
+export function getLocationFallback(): string | undefined {
+  try {
+    const v = localStorage.getItem(LOCATION_FALLBACK_KEY)
+    return v?.trim() ? v.trim() : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function clearLocationFallback() {
+  try {
+    localStorage.removeItem(LOCATION_FALLBACK_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+function setLocationFallback(value: string) {
+  const t = value.trim()
+  try {
+    if (t) localStorage.setItem(LOCATION_FALLBACK_KEY, t)
+    else localStorage.removeItem(LOCATION_FALLBACK_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Merge server profile with locally saved location when API has no location yet. */
+export function mergeProfileWithLocationFallback(
+  profile: UserProfileDto,
+): UserProfileDto {
+  const fb = getLocationFallback()
+  if (fb && !(profile.location?.trim())) {
+    return { ...profile, location: fb }
+  }
+  return profile
+}
+
+export async function fetchProfile() {
+  const { data } = await api.get<unknown>('/user/profile')
+  const p = normalizeUserProfile(data)
+  if (p.location?.trim()) clearLocationFallback()
+  return mergeProfileWithLocationFallback(p)
+}
+
+export async function savePreferences(categories: string[]) {
+  const { data } = await api.post<unknown>('/user/preferences', {
+    categories,
+  })
+  const p = normalizeUserProfile(data)
+  persistUserCategories(p.categories)
+  return p
+}
+
+/**
+ * Saves location via `POST /user/preferences` with the user's current five categories and
+ * `location`. That route is always registered on the API, so you avoid a spurious 404 from
+ * `POST /user/location` when an older backend build is still running.
+ */
+export async function saveUserLocation(
+  location: string,
+  currentUser: UserProfileDto,
+): Promise<{ profile: UserProfileDto; synced: boolean }> {
+  const trimmed = location.trim()
+  if (trimmed && !isAllowedPresetLocation(trimmed)) {
+    throw new Error('Location must be from the preset list')
+  }
+  const cats = currentUser.categories ?? []
+  if (!isCategoryCountValid(cats.length)) {
+    const t = trimmed
+    setLocationFallback(t)
+    return {
+      profile: { ...currentUser, location: t || undefined },
+      synced: false,
+    }
+  }
+
+  function profileFromSaveResponse(data: unknown): UserProfileDto {
+    const normalized = normalizeUserProfile(data)
+    const locationOut =
+      trimmed === ''
+        ? undefined
+        : normalized.location?.trim() || trimmed || undefined
+    return { ...normalized, location: locationOut }
+  }
+
+  try {
+    const { data } = await api.post<unknown>('/user/preferences', {
+      categories: cats,
+      location: trimmed,
+    })
+    clearLocationFallback()
+    const profile = profileFromSaveResponse(data)
+    persistUserCategories(profile.categories)
+    return { profile, synced: true }
+  } catch (e) {
+    const status = isAxiosError(e) ? e.response?.status : undefined
+    if (
+      status !== undefined &&
+      [404, 405, 502, 503].includes(status)
+    ) {
+      const t = trimmed
+      setLocationFallback(t)
+      return {
+        profile: { ...currentUser, location: t || undefined },
+        synced: false,
+      }
+    }
+    throw e
+  }
+}
+
+function normalizeQuiz(raw: unknown): QuizDto {
+  const r = raw as Record<string, unknown>
+  const st = String(r.status ?? 'live')
+  const status =
+    st === 'upcoming' || st === 'ended' || st === 'live'
+      ? (st as QuizDto['status'])
+      : 'live'
+  return {
+    id: String(r.id ?? ''),
+    title: String(r.title ?? ''),
+    description: String(r.description ?? ''),
+    status,
+    startsAt: r.startsAt != null ? String(r.startsAt) : undefined,
+    endsAt: r.endsAt != null ? String(r.endsAt) : undefined,
+    questionCount: typeof r.questionCount === 'number' ? r.questionCount : 0,
+    referenceDocumentUrl:
+      r.referenceDocumentUrl != null
+        ? String(r.referenceDocumentUrl)
+        : undefined,
+    referenceDocumentName:
+      r.referenceDocumentName != null
+        ? String(r.referenceDocumentName)
+        : undefined,
+  }
+}
+
+function normalizeQuestion(raw: unknown): QuestionDto {
+  const r = raw as Record<string, unknown>
+  const media = r.mediaType
+  const input = r.inputType
+  return {
+    id: String(r.id ?? ''),
+    questionText: String(r.questionText ?? ''),
+    mediaUrl: r.mediaUrl != null ? String(r.mediaUrl) : undefined,
+    mediaType:
+      media === 'image' ||
+      media === 'video' ||
+      media === 'gif' ||
+      media === 'audio' ||
+      media === 'none'
+        ? media
+        : 'none',
+    inputType:
+      input === 'mcq4' ||
+      input === 'binary' ||
+      input === 'mcq3' ||
+      input === 'slider'
+        ? input
+        : 'mcq4',
+    options: Array.isArray(r.options)
+      ? (r.options as unknown[]).map((o) => String(o ?? ''))
+      : [],
+    category: String(r.category ?? ''),
+    documentReference:
+      r.documentReference != null ? String(r.documentReference) : undefined,
+  }
+}
+
+const QUIZ_PLAY_STORAGE_PREFIX = 'nserve_quiz_play:'
+
+/** Stable idempotency key per quiz tab session; reused so refresh does not double-charge. */
+export function getQuizPlayClientId(quizId: string): string {
+  try {
+    const k = QUIZ_PLAY_STORAGE_PREFIX + quizId
+    let v = sessionStorage.getItem(k)
+    if (!v) {
+      v = crypto.randomUUID()
+      sessionStorage.setItem(k, v)
+    }
+    return v
+  } catch {
+    return crypto.randomUUID()
+  }
+}
+
+export function clearQuizPlayClientId(quizId: string) {
+  try {
+    sessionStorage.removeItem(QUIZ_PLAY_STORAGE_PREFIX + quizId)
+  } catch {
+    /* ignore */
+  }
+}
+
+export type WalletBalanceDto = { credits: number; totalSpent: number }
+
+export async function fetchWalletBalance() {
+  const { data } = await api.get<WalletBalanceDto>('/wallet/balance')
+  return data
 }
 
 export type CreditTransaction = {

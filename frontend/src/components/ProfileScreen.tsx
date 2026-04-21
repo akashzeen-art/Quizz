@@ -181,20 +181,6 @@ export function ProfileScreen() {
     }
   }
 
-  async function onRegisterFace(image: Blob) {
-    setFaceBusy(true)
-    try {
-      const next = await api.faceRegister(image)
-      setUser(next)
-      toast.success('Face registered')
-      setFaceOpen(false)
-    } catch (e) {
-      toast.error(api.getApiErrorMessage(e))
-    } finally {
-      setFaceBusy(false)
-    }
-  }
-
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     e.target.value = ''
@@ -241,20 +227,6 @@ export function ProfileScreen() {
       </header>
 
       <main className="mx-auto max-w-lg space-y-6 px-4 py-6">
-        <section className="app-card border-emerald-200/70 bg-emerald-50/40 p-4 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-extrabold text-slate-900">Face login</p>
-              <p className="mt-0.5 text-xs font-medium text-slate-600">              </p>
-            </div>
-            <button
-              type="button"
-              className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
-              onClick={() => setFaceOpen(true)}
-              disabled={faceBusy}
-            >            </button>
-          </div>
-        </section>
         <div className="flex flex-col items-center">
           <div className="relative">
             <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-4 border-violet-200 bg-violet-50 shadow-inner">

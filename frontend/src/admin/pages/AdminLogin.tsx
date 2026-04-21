@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Loader2, Shield } from 'lucide-react'
@@ -10,10 +10,9 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
 
-  if (getAdminToken()) {
-    navigate('/admin/dashboard', { replace: true })
-    return null
-  }
+  useEffect(() => {
+    if (getAdminToken()) navigate('/admin/dashboard', { replace: true })
+  }, [navigate])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()

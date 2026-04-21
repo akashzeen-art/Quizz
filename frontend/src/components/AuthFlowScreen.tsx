@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion'
 import {
   ArrowRight,
-  Camera,
   ChevronDown,
   ChevronLeft,
   Globe2,
@@ -31,7 +30,16 @@ import { AVATAR_SEED_POOL, dicebearUrl } from '../constants/avatars'
 
 type Mode = 'signin' | 'signup'
 type Method = 'email' | 'phone' | 'google'
-type Step = 'select' | 'input' | 'profile'
+type Step = 'select' | 'input' | 'otp' | 'profile' | 'pin-login' | 'forgot-pin' | 'reset-pin'
+type PhoneSignInMode = 'otp' | 'pin'
+
+const SECURITY_QUESTIONS = [
+  "What is your pet's name?",
+  'What is your birth city?',
+  'What was your first school name?',
+  "What is your mother's maiden name?",
+  'What was your childhood nickname?',
+] as const
 
 function GoogleSignInBlock({
   busy,
@@ -154,7 +162,7 @@ export function AuthFlowScreen() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const inviteRef = searchParams.get('ref')
-  const { loginWithToken } = useApp()
+  const { loginWithToken, setUser } = useApp()
 
   const [mode, setMode] = useState<Mode>('signin')
   const [method, setMethod] = useState<Method>('email')
@@ -201,12 +209,25 @@ export function AuthFlowScreen() {
   const [name, setName] = useState('')
   const [gameTag, setGameTag] = useState('')
   const [avatarKey, setAvatarKey] = useState('')
-
+  const [otpPhone, setOtpPhone] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+  const [phoneVerifiedForSignup, setPhoneVerifiedForSignup] = useState(false)
+  const [phoneSignInMode, setPhoneSignInMode] = useState<PhoneSignInMode>('otp')
+  const [pin, setPin] = useState('')
+  const [securityQuestion, setSecurityQuestion] = useState<(typeof SECURITY_QUESTIONS)[number]>(
+    SECURITY_QUESTIONS[0],
+  )
+  const [securityAnswer, setSecurityAnswer] = useState('')
+  const [recoveryToken, setRecoveryToken] = useState('')
 
   function reset() {
     setStep('select')
     setCountryQuery('')
     setCountryDropdownOpen(false)
+    setOtpCode('')
+    setOtpPhone('')
+    setPhoneVerifiedForSignup(false)
+    setRecoveryToken('')
   }
 
   async function onEmailContinue(e: React.FormEvent) {
@@ -220,6 +241,7 @@ export function AuthFlowScreen() {
         loginWithToken(res.token, res.user)
         navigate(shouldForceCategoryOnboarding(res.user) ? '/categories' : '/home', { replace: true })
       } else {
+        setStep('profile')
       }
     } catch (err) {
       toast.error(api.getApiErrorMessage(err))
@@ -230,16 +252,20 @@ export function AuthFlowScreen() {
 
   async function onPhoneContinue(e: React.FormEvent) {
     e.preventDefault()
-    const full = buildFullPhoneDigits(countryIso, nationalNumber)
-    if (full.length < 8) return toast.error('Enter your mobile number')
+    const fullDigits = buildFullPhoneDigits(countryIso, nationalNumber)
+    if (fullDigits.length < 8) return toast.error('Enter your mobile number')
+    const fullE164 = `+${fullDigits}`
     setBusy(true)
     try {
-      if (mode === 'signin') {
-        const res = await api.loginPhoneExisting(full)
-        loginWithToken(res.token, res.user)
-        navigate(shouldForceCategoryOnboarding(res.user) ? '/categories' : '/home', { replace: true })
-      } else {
+      setOtpPhone(fullE164)
+      if (mode === 'signin' && phoneSignInMode === 'pin') {
+        setStep('pin-login')
+        return
       }
+      await api.sendOtp(fullE164)
+      setOtpCode('')
+      setStep('otp')
+      toast.success('OTP sent successfully')
     } catch (err) {
       toast.error(api.getApiErrorMessage(err))
     } finally {
@@ -247,21 +273,113 @@ export function AuthFlowScreen() {
     }
   }
 
-  async function onFaceCapture(image: Blob) {
+  async function onVerifyOtp(e: React.FormEvent) {
+    e.preventDefault()
+    const code = otpCode.trim()
+    if (!otpPhone) return toast.error('Please enter phone number again')
+    if (code.length < 4) return toast.error('Enter valid OTP')
+    setBusy(true)
     try {
-      if (faceFor === 'login') {
-        const res = await api.faceLogin(image)
+      const res = await api.verifyOtp(otpPhone, code)
+      if (mode === 'signin') {
         loginWithToken(res.token, res.user)
-        setFaceOpen(false)
         navigate(shouldForceCategoryOnboarding(res.user) ? '/categories' : '/home', { replace: true })
         return
       }
-      const enc = await api.faceEncode(image)
-      setFaceEncoding(enc)
-      setFaceOpen(false)
-      setStep('profile')
+      if (res.newUser) {
+        loginWithToken(res.token, res.user)
+        setPhoneVerifiedForSignup(true)
+        setStep('profile')
+        toast.success('OTP verified')
+        return
+      }
+      loginWithToken(res.token, res.user)
+      toast.message('Account already exists for this phone. Signed in successfully.')
+      navigate(shouldForceCategoryOnboarding(res.user) ? '/categories' : '/home', { replace: true })
     } catch (err) {
       toast.error(api.getApiErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onResendOtp() {
+    if (!otpPhone) return toast.error('Please enter phone number again')
+    setBusy(true)
+    try {
+      await api.sendOtp(otpPhone)
+      toast.success('OTP resent')
+    } catch (err) {
+      toast.error(api.getApiErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onPinLogin(e: React.FormEvent) {
+    e.preventDefault()
+    if (!otpPhone) return toast.error('Please enter phone number again')
+    if (!/^\d{4}$/.test(pin.trim())) return toast.error('PIN must be 4 digits')
+    setBusy(true)
+    try {
+      const res = await api.verifyPin(otpPhone, pin.trim())
+      loginWithToken(res.token, res.user)
+      navigate(shouldForceCategoryOnboarding(res.user) ? '/categories' : '/home', { replace: true })
+    } catch (err) {
+      toast.error(api.getApiErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onForgotPinSendOtp() {
+    if (!otpPhone) return toast.error('Please enter phone number first')
+    setBusy(true)
+    try {
+      await api.forgotPinSendOtp(otpPhone)
+      setOtpCode('')
+      setStep('forgot-pin')
+      toast.success('OTP sent for PIN recovery')
+    } catch (err) {
+      toast.error(api.getApiErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onForgotPinVerify(e: React.FormEvent) {
+    e.preventDefault()
+    if (!otpPhone) return toast.error('Please enter phone number first')
+    if (otpCode.trim().length < 4) return toast.error('Enter valid OTP')
+    if (!securityAnswer.trim()) return toast.error('Enter security answer')
+    setBusy(true)
+    try {
+      const res = await api.forgotPinVerify(otpPhone, otpCode.trim(), securityQuestion, securityAnswer.trim())
+      if (!res.verified) return toast.error('Verification failed')
+      setRecoveryToken(res.recoveryToken)
+      setPin('')
+      setStep('reset-pin')
+      toast.success('Verified. Set a new PIN.')
+    } catch (err) {
+      toast.error(api.getApiErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onResetPin(e: React.FormEvent) {
+    e.preventDefault()
+    if (!recoveryToken) return toast.error('Recovery session expired. Try again.')
+    if (!/^\d{4}$/.test(pin.trim())) return toast.error('PIN must be 4 digits')
+    setBusy(true)
+    try {
+      await api.resetPin(recoveryToken, pin.trim())
+      toast.success('PIN reset successful. Please login with PIN.')
+      setStep('pin-login')
+    } catch (err) {
+      toast.error(api.getApiErrorMessage(err))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -271,21 +389,41 @@ export function AuthFlowScreen() {
     const normalizedTag = gameTag.trim().replace(/\s+/g, '').replace(/[^A-Za-z0-9_]/g, '')
     if (normalizedTag.length < 4) return toast.error('Game tag must be at least 4 characters')
 
-    const identifier =
-      method === 'email'
-        ? email.trim()
-        : method === 'phone'
-          ? buildFullPhoneDigits(countryIso, nationalNumber)
-          : undefined
-
     setBusy(true)
     try {
+      if (method === 'phone' && phoneVerifiedForSignup) {
+        let next = await api.updateProfile({
+          displayName: trimmedName,
+          gameTag: normalizedTag,
+          avatarKey: avatarKey.trim(),
+          profilePhotoUrl: null,
+          clearCustomPhoto: false,
+        })
+        if (/^\d{4}$/.test(pin.trim())) {
+          next = await api.setPin(pin.trim())
+        }
+        if (securityAnswer.trim()) {
+          next = await api.setSecurityQuestion(securityQuestion, securityAnswer.trim())
+        }
+        setUser(next)
+        navigate(shouldForceCategoryOnboarding(next) ? '/categories' : '/home', { replace: true })
+        return
+      }
+      const identifier =
+        method === 'email'
+          ? email.trim()
+          : method === 'phone'
+            ? buildFullPhoneDigits(countryIso, nationalNumber)
+            : undefined
       const res = await api.signup({
         method: method === 'phone' ? 'phone' : method === 'email' ? 'email' : 'google',
         identifier,
         name: trimmedName,
         gameTag: normalizedTag,
         avatarKey: avatarKey.trim() || undefined,
+        pin: pin.trim() || undefined,
+        securityQuestion: securityAnswer.trim() ? securityQuestion : undefined,
+        securityAnswer: securityAnswer.trim() || undefined,
       })
       loginWithToken(res.token, res.user)
       navigate(shouldForceCategoryOnboarding(res.user) ? '/categories' : '/home', { replace: true })
@@ -321,10 +459,18 @@ export function AuthFlowScreen() {
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
           {step === 'select'
-            ? 'Choose how you want to continue. No verification code required.'
+            ? 'Choose how you want to continue.'
             : step === 'input'
-              ? 'Enter your details — no OTP, no password.'
-                : 'Set up your profile to finish.'}
+              ? 'Enter your details to continue.'
+              : step === 'otp'
+                ? 'Enter the OTP sent to your mobile number.'
+                : step === 'pin-login'
+                  ? 'Enter your 4-digit PIN for quick login.'
+                  : step === 'forgot-pin'
+                    ? 'Verify OTP and security question to recover your PIN.'
+                    : step === 'reset-pin'
+                      ? 'Set your new 4-digit PIN.'
+              : 'Set up your profile to finish.'}
         </p>
 
         {inviteRef && (
@@ -395,27 +541,10 @@ export function AuthFlowScreen() {
                 </span>
                 <span>
                   <span className="block text-base font-bold text-slate-900">Continue with Phone</span>
-                  <span className="text-xs font-medium text-slate-500">No OTP for now</span>
+                  <span className="text-xs font-medium text-slate-500">Secure login with OTP</span>
                 </span>
               </button>
 
-              {mode === 'signin' && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                  }}
-                  className="app-card flex w-full items-center gap-4 border-slate-200/90 p-4 text-left shadow-md transition hover:border-violet-200 hover:bg-violet-50/40 disabled:opacity-50"
-                >
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                    <Camera className="h-6 w-6" />
-                  </span>
-                  <span>
-                    <span className="block text-base font-bold text-slate-900">Login with Face</span>
-                    <span className="text-xs font-medium text-slate-500">Fast sign-in using camera</span>
-                  </span>
-                </button>
-              )}
             </div>
 
             <div className="relative my-10">
@@ -435,6 +564,7 @@ export function AuthFlowScreen() {
               onNeedSignup={() => {
                 setMode('signup')
                 setMethod('google')
+                setStep('profile')
               }}
             />
           </>
@@ -576,8 +706,35 @@ export function AuthFlowScreen() {
                   />
                 </div>
 
+                {mode === 'signin' && (
+                  <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setPhoneSignInMode('otp')}
+                      className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
+                        phoneSignInMode === 'otp' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600'
+                      }`}
+                    >
+                      Login via OTP
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPhoneSignInMode('pin')}
+                      className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
+                        phoneSignInMode === 'pin' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600'
+                      }`}
+                    >
+                      Login via PIN
+                    </button>
+                  </div>
+                )}
+
                 <button type="submit" disabled={busy} className="btn-app-primary py-4 text-base">
-                  Continue
+                  {mode === 'signin'
+                    ? phoneSignInMode === 'pin'
+                      ? 'Continue to PIN login'
+                      : 'Send OTP'
+                    : 'Send OTP'}
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
                     <ArrowRight className="h-4 w-4" />
                   </span>
@@ -586,6 +743,7 @@ export function AuthFlowScreen() {
             </div>
           </form>
         )}
+
         {step === 'profile' && (
           <div className="mt-8 space-y-6">
             <section>
@@ -618,6 +776,41 @@ export function AuthFlowScreen() {
               <p className="text-[11px] text-slate-500">Use letters, numbers, or underscore. Min 4 chars.</p>
             </section>
 
+            <section className="space-y-2">
+              <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Set 4-digit PIN</label>
+              <input
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                className="input-app text-sm tracking-[0.25em]"
+                placeholder="1234"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+              />
+              <p className="text-[11px] text-slate-500">Use this PIN for quick re-login.</p>
+            </section>
+
+            <section className="space-y-2">
+              <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Security question</label>
+              <select
+                value={securityQuestion}
+                onChange={(e) => setSecurityQuestion(e.target.value as (typeof SECURITY_QUESTIONS)[number])}
+                className="input-app text-sm"
+              >
+                {SECURITY_QUESTIONS.map((q) => (
+                  <option key={q} value={q}>
+                    {q}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={securityAnswer}
+                onChange={(e) => setSecurityAnswer(e.target.value)}
+                className="input-app text-sm"
+                placeholder="Enter answer"
+                maxLength={80}
+              />
+            </section>
+
             <button type="button" disabled={busy} className="btn-app-primary py-4" onClick={() => void onCreateAccount()}>
               Create account
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
@@ -626,6 +819,149 @@ export function AuthFlowScreen() {
             </button>
           </div>
         )}
+
+        {step === 'otp' && method === 'phone' && (
+          <form onSubmit={onVerifyOtp} className="mt-8 space-y-6">
+            <div className="app-card overflow-hidden border-indigo-200/70 p-0 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-100/80">
+              <div className="border-b border-slate-100 bg-gradient-to-r from-indigo-50/90 to-violet-50/40 px-5 py-4">
+                <p className="text-sm font-bold text-slate-900">Verify OTP</p>
+                <p className="text-xs font-medium text-slate-500">Code sent to {otpPhone}</p>
+              </div>
+              <div className="space-y-4 p-5">
+                <input
+                  className="input-app w-full text-center text-lg font-bold tracking-[0.35em]"
+                  inputMode="numeric"
+                  placeholder="------"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  autoComplete="one-time-code"
+                />
+                <button type="submit" disabled={busy} className="btn-app-primary py-4 text-base">
+                  Verify OTP
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
+                    <ArrowRight className="h-4 w-4" />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="btn-app-ghost w-full py-3 font-semibold"
+                  onClick={() => void onResendOtp()}
+                >
+                  Resend OTP
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {step === 'pin-login' && method === 'phone' && (
+          <form onSubmit={onPinLogin} className="mt-8 space-y-6">
+            <div className="app-card overflow-hidden border-indigo-200/70 p-0 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-100/80">
+              <div className="border-b border-slate-100 bg-gradient-to-r from-indigo-50/90 to-violet-50/40 px-5 py-4">
+                <p className="text-sm font-bold text-slate-900">PIN Login</p>
+                <p className="text-xs font-medium text-slate-500">{otpPhone}</p>
+              </div>
+              <div className="space-y-4 p-5">
+                <input
+                  className="input-app w-full text-center text-lg font-bold tracking-[0.35em]"
+                  inputMode="numeric"
+                  placeholder="----"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  autoComplete="one-time-code"
+                />
+                <button type="submit" disabled={busy} className="btn-app-primary py-4 text-base">
+                  Login with PIN
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
+                    <ArrowRight className="h-4 w-4" />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="btn-app-ghost w-full py-3 font-semibold"
+                  onClick={() => void onForgotPinSendOtp()}
+                >
+                  Forgot PIN
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {step === 'forgot-pin' && method === 'phone' && (
+          <form onSubmit={onForgotPinVerify} className="mt-8 space-y-6">
+            <div className="app-card overflow-hidden border-indigo-200/70 p-0 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-100/80">
+              <div className="border-b border-slate-100 bg-gradient-to-r from-indigo-50/90 to-violet-50/40 px-5 py-4">
+                <p className="text-sm font-bold text-slate-900">Recover PIN</p>
+                <p className="text-xs font-medium text-slate-500">Verify OTP + security answer</p>
+              </div>
+              <div className="space-y-4 p-5">
+                <input
+                  className="input-app w-full text-center text-lg font-bold tracking-[0.35em]"
+                  inputMode="numeric"
+                  placeholder="------"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  autoComplete="one-time-code"
+                />
+                <select
+                  value={securityQuestion}
+                  onChange={(e) => setSecurityQuestion(e.target.value as (typeof SECURITY_QUESTIONS)[number])}
+                  className="input-app text-sm"
+                >
+                  {SECURITY_QUESTIONS.map((q) => (
+                    <option key={q} value={q}>
+                      {q}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  value={securityAnswer}
+                  onChange={(e) => setSecurityAnswer(e.target.value)}
+                  className="input-app text-sm"
+                  placeholder="Security answer"
+                  maxLength={80}
+                />
+                <button type="submit" disabled={busy} className="btn-app-primary py-4 text-base">
+                  Verify and continue
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
+                    <ArrowRight className="h-4 w-4" />
+                  </span>
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {step === 'reset-pin' && method === 'phone' && (
+          <form onSubmit={onResetPin} className="mt-8 space-y-6">
+            <div className="app-card overflow-hidden border-indigo-200/70 p-0 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-100/80">
+              <div className="border-b border-slate-100 bg-gradient-to-r from-indigo-50/90 to-violet-50/40 px-5 py-4">
+                <p className="text-sm font-bold text-slate-900">Set New PIN</p>
+                <p className="text-xs font-medium text-slate-500">Choose 4 digits</p>
+              </div>
+              <div className="space-y-4 p-5">
+                <input
+                  className="input-app w-full text-center text-lg font-bold tracking-[0.35em]"
+                  inputMode="numeric"
+                  placeholder="----"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  autoComplete="one-time-code"
+                />
+                <button type="submit" disabled={busy} className="btn-app-primary py-4 text-base">
+                  Reset PIN
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
+                    <ArrowRight className="h-4 w-4" />
+                  </span>
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
       </motion.div>
     </div>
   )

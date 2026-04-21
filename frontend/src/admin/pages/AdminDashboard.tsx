@@ -12,6 +12,7 @@ import {
 import {
   Activity,
   HelpCircle,
+  Trash2,
   Trophy,
   Users,
   Zap,
@@ -20,6 +21,7 @@ import { toast } from 'sonner'
 import {
   fetchAdminCharts,
   fetchAdminStats,
+  resetAllData,
   adminApiError,
 } from '../adminApi'
 import type { AdminCharts, AdminStats } from '../types'
@@ -28,6 +30,23 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [charts, setCharts] = useState<AdminCharts | null>(null)
   const [loading, setLoading] = useState(true)
+  const [resetting, setResetting] = useState(false)
+
+  async function handleReset() {
+    if (!window.confirm('This will delete ALL users, quizzes, results and credit data. Admins and questions are kept. Continue?')) return
+    setResetting(true)
+    try {
+      const result = await resetAllData()
+      toast.success(`Cleared — users: ${result.deleted.users}, quizzes: ${result.deleted.quizzes}, questions: ${result.deleted.questions}, results: ${result.deleted.results}`)
+      const [s, c] = await Promise.all([fetchAdminStats(), fetchAdminCharts(14)])
+      setStats(s)
+      setCharts(c)
+    } catch (e) {
+      toast.error(adminApiError(e))
+    } finally {
+      setResetting(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -66,11 +85,22 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-extrabold text-white">Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Overview · Active users = last {stats?.activeWindowMinutes ?? 15} minutes
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold text-white">Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Overview · Active users = last {stats?.activeWindowMinutes ?? 15} minutes
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={resetting}
+          onClick={() => void handleReset()}
+          className="flex items-center gap-2 rounded-xl border border-red-800/60 bg-red-950/60 px-4 py-2 text-sm font-bold text-red-400 transition hover:bg-red-900/60 disabled:opacity-50"
+        >
+          <Trash2 className="h-4 w-4" />
+          {resetting ? 'Clearing…' : 'Clear Data'}
+        </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -112,7 +142,7 @@ export default function AdminDashboard() {
           Answer submissions per day · Unique players per day (from results)
         </p>
         <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={288}>
             <LineChart data={merged}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
               <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
