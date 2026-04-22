@@ -1,7 +1,6 @@
 package com.nserve.quiz.api;
 
 import com.nserve.quiz.domain.User;
-import com.nserve.quiz.dto.BoosterStatusDto;
 import com.nserve.quiz.dto.DeductCreditsRequest;
 import com.nserve.quiz.dto.DeductCreditsResponse;
 import com.nserve.quiz.dto.QuizDetailResponse;
@@ -10,7 +9,6 @@ import com.nserve.quiz.dto.SubmitAnswerRequest;
 import com.nserve.quiz.dto.SubmitAnswerResponse;
 import com.nserve.quiz.repo.ResultRepository;
 import com.nserve.quiz.security.CurrentUser;
-import com.nserve.quiz.service.BoosterService;
 import com.nserve.quiz.service.QuizService;
 import com.nserve.quiz.service.WalletService;
 import jakarta.validation.Valid;
@@ -29,25 +27,16 @@ public class QuizController {
   private final QuizService quizService;
   private final WalletService walletService;
   private final ResultRepository resultRepository;
-  private final BoosterService boosterService;
 
-  public QuizController(QuizService quizService, WalletService walletService, ResultRepository resultRepository, BoosterService boosterService) {
+  public QuizController(QuizService quizService, WalletService walletService, ResultRepository resultRepository) {
     this.quizService = quizService;
     this.walletService = walletService;
     this.resultRepository = resultRepository;
-    this.boosterService = boosterService;
   }
 
   @GetMapping("/quiz/list")
   public List<QuizDto> list() {
     return quizService.listQuizzes();
-  }
-
-  @GetMapping("/quiz/booster-status")
-  public BoosterStatusDto boosterStatus(@RequestAttribute(CurrentUser.ATTR) User user) {
-    boolean active = boosterService.isBoosterActive(user);
-    long secs = boosterService.boosterSecondsLeft(user);
-    return new BoosterStatusDto(active, secs, active ? 2 : 1);
   }
 
   @GetMapping("/quiz/{id}/answered")

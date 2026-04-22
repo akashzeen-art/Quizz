@@ -168,7 +168,7 @@ public class QuizService {
         Question qq = questionRepository.findById(req.questionId())
             .orElseThrow(() -> new IllegalArgumentException("Question not found"));
         Integer reveal = qq.getInputType() == InputType.slider ? null : qq.getCorrectAnswerIndex();
-        return new SubmitAnswerResponse(r.isCorrect(), false, 0, "Already answered", user.getTotalScore(), reveal, boosterService.isBoosterActive(user), false);
+        return new SubmitAnswerResponse(r.isCorrect(), false, 0, "Already answered", user.getTotalScore(), reveal);
       }
     }
 
