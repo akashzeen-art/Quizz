@@ -152,7 +152,8 @@ export function HomeScreen() {
       ? '$'
       : '₹'
   const credits = user?.credits ?? 0
-  const cashBalance = Math.floor(credits / 2)
+  const walletRupees = user?.walletRupees ?? 0
+  const cashBalance = walletRupees.toFixed(2)
 
   const cal = useMemo(
     () => monthGrid(calendarMonth.getFullYear(), calendarMonth.getMonth()),
@@ -346,11 +347,10 @@ export function HomeScreen() {
               </p>
               <p className="truncate tabular-nums">
                 <span className="text-lg font-extrabold">
-                  {currencySymbol}
-                  {cashBalance.toLocaleString()}
+                  {currencySymbol}{cashBalance}
                 </span>{' '}
                 <span className="text-xs font-semibold text-white/80">
-                  ({credits.toLocaleString()} credits)
+                  ({user?.points ?? 0} pts)
                 </span>
               </p>
             </div>

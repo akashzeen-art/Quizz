@@ -114,13 +114,16 @@ public class LeaderboardService {
             ? u.getAvatarKey()
             : ("lb-" + u.getId());
     String avatarUrl = u.getProfilePhotoUrl();
+    // Leaderboard score = wallet (in rupees as int) + points
+    int walletRupees = u.getWalletPaise() / 100;
+    int leaderboardScore = walletRupees + u.getPoints();
     return new LeaderboardEntryDto(
         rank,
         u.getId(),
         u.getDisplayName() != null ? u.getDisplayName() : "Player",
         avatarSeed,
         avatarUrl,
-        u.getTotalScore(),
+        leaderboardScore,
         u.getWeeklyScore(),
         u.getMonthlyScore(),
         u.getDayScore(),

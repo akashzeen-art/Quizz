@@ -66,6 +66,12 @@ public class WalletService {
 
     User u = userRepository.findById(user.getId()).orElseThrow();
     u.setCredits(u.getCredits() + total);
+    // Also add to real wallet (paise)
+    int addPaise = total * 100; // 1 credit = ₹1 = 100 paise
+    if (req.amountRupees() != null && req.amountRupees() > 0) {
+      addPaise = req.amountRupees() * 100;
+    }
+    u.setWalletPaise(u.getWalletPaise() + addPaise);
     userRepository.save(u);
 
     String desc = req.amountRupees() != null && req.amountRupees() > 0
@@ -76,13 +82,14 @@ public class WalletService {
     return new WalletBalanceDto(u.getCredits(), u.getTotalSpent());
   }
 
-  /** Grant starter credits to a new user (called from AuthService on first login). */
+  /** Grant starter wallet to a new user (called from AuthService on first login). */
   public void grantStarterCreditsIfNeeded(User user) {
-    if (user.getCredits() > 0) return;
+    if (user.getCredits() > 0 || user.getWalletPaise() > 0) return;
+    int starterPaise = economyConfigService.get().getStarterWalletPaise();
+    user.setWalletPaise(starterPaise);
     user.setCredits(economyConfigService.get().getStarterCredits());
     userRepository.save(user);
-    int sc = economyConfigService.get().getStarterCredits();
-    saveTx(CreditTransaction.added(user.getId(), sc, sc, "Welcome bonus"));
+    saveTx(CreditTransaction.added(user.getId(), starterPaise / 100, starterPaise / 100, "Welcome bonus ₹" + (starterPaise / 100)));
   }
 
   public DeductCreditsResponse deductForQuiz(User user, String quizId, String clientRequestId) {
@@ -107,17 +114,20 @@ public class WalletService {
     } catch (Exception ignored) { /* collection not yet available */ }
 
     User u = userRepository.findById(user.getId()).orElseThrow();
-    if (u.getCredits() < economyConfigService.get().getQuizStartCost()) {
+    int entryFeePaise = economyConfigService.get().getQuizEntryFeePaise();
+    if (u.getWalletPaise() < entryFeePaise) {
       throw new ResponseStatusException(
           HttpStatus.PAYMENT_REQUIRED,
-          "Insufficient credits. You need at least " + economyConfigService.get().getQuizStartCost() + " credits.");
+          "Insufficient balance. You need at least ₹" + (entryFeePaise / 100) + " to enter.");
     }
     int cost = economyConfigService.get().getQuizStartCost();
-    u.setCredits(u.getCredits() - cost);
+    u.setCredits(u.getCredits() - Math.min(cost, u.getCredits()));
+    u.setWalletPaise(u.getWalletPaise() - entryFeePaise);
     u.setTotalSpent(u.getTotalSpent() + cost);
+    u.setTotalSpentPaise(u.getTotalSpentPaise() + entryFeePaise);
     userRepository.save(u);
 
-    saveTx(CreditTransaction.used(u.getId(), economyConfigService.get().getQuizStartCost(), u.getCredits(), "Quiz start: " + quizId));
+    saveTx(CreditTransaction.used(u.getId(), entryFeePaise / 100, u.getWalletPaise() / 100, "Quiz entry ₹" + (entryFeePaise / 100) + ": " + quizId));
 
     try {
       QuizPlayEntitlement ent = new QuizPlayEntitlement();

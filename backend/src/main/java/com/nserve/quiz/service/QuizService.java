@@ -303,6 +303,9 @@ public class QuizService {
     u.setWeeklyScore(u.getWeeklyScore() + points);
     u.setMonthlyScore(u.getMonthlyScore() + points);
     u.setPoints(u.getPoints() + points);
+    // +₹1 to wallet on correct answer
+    int correctPaise = economyConfigService.get().getCorrectAnswerPaise();
+    u.setWalletPaise(u.getWalletPaise() + correctPaise);
     List<String> dates = u.getPlayedDates();
     if (dates == null) { dates = new ArrayList<>(); u.setPlayedDates(dates); }
     if (!dates.contains(today)) dates.add(today);
@@ -318,6 +321,9 @@ public class QuizService {
     u.setWeeklyScore(Math.max(0, u.getWeeklyScore() + points));
     u.setMonthlyScore(Math.max(0, u.getMonthlyScore() + points));
     u.setPoints(Math.max(0, u.getPoints() + points));
+    // -₹0.10 from wallet on wrong answer
+    int wrongPaise = economyConfigService.get().getWrongAnswerPaise();
+    u.setWalletPaise(Math.max(0, u.getWalletPaise() - wrongPaise));
     List<String> dates = u.getPlayedDates();
     if (dates == null) { dates = new ArrayList<>(); u.setPlayedDates(dates); }
     if (!dates.contains(today)) dates.add(today);

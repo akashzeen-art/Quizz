@@ -59,6 +59,12 @@ public class User {
   /** Wallet balance for quiz starts and future purchases. */
   private int credits;
 
+  /** Wallet balance in paise (100 paise = ₹1). Primary real-money wallet. */
+  private int walletPaise;
+
+  /** Lifetime rupees spent in paise. */
+  private int totalSpentPaise;
+
   /** Lifetime credits spent (e.g. quiz starts). */
   private int totalSpent;
 
@@ -257,6 +263,12 @@ public class User {
   public void setCredits(int credits) {
     this.credits = credits;
   }
+
+  public int getWalletPaise() { return walletPaise; }
+  public void setWalletPaise(int walletPaise) { this.walletPaise = walletPaise; }
+
+  public int getTotalSpentPaise() { return totalSpentPaise; }
+  public void setTotalSpentPaise(int totalSpentPaise) { this.totalSpentPaise = totalSpentPaise; }
 
   public int getTotalSpent() { return totalSpent; }
   public void setTotalSpent(int totalSpent) { this.totalSpent = totalSpent; }

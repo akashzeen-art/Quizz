@@ -50,6 +50,12 @@ export interface UserProfileDto {
   credits: number
   /** Lifetime credits spent. */
   totalSpent: number
+  /** Real money wallet in paise (100 paise = ₹1). */
+  walletPaise: number
+  /** Real money wallet in rupees (float). */
+  walletRupees: number
+  /** Lifetime spent in paise. */
+  totalSpentPaise: number
   categories: string[]
   playedDates: string[]
   /** City / region label (optional). */
