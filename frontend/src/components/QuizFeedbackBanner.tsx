@@ -143,7 +143,7 @@ export function QuizFeedbackBanner({ correct, timedOut, points, msg, effectId }:
               animate={{ scale: 1, opacity: 1 }}
               className="mt-3 inline-flex rounded-full bg-white/20 px-4 py-1 text-base font-bold tabular-nums text-white ring-2 ring-white/30"
             >
-              −2 pts
+              −1 pts
             </motion.span>
           </div>
         </motion.div>

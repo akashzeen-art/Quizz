@@ -26,12 +26,7 @@ public class EconomyConfig {
   private int wrongPoints = -1;          // -1 point per wrong
   private int timeoutPoints = 0;         // 0 points unanswered
 
-  // Booster
-  private int boosterMultiplier = 2;
-  private int boosterDurationMinutes = 10;
-  private int boosterConsecutiveWrongTrigger = 2;
-  private int boosterInactivityHoursTrigger = 24;
-  private double boosterBottomPercentTrigger = 0.40;
+  // Booster removed
 
   public EconomyConfig() {}
 
@@ -71,18 +66,4 @@ public class EconomyConfig {
   public int getTimeoutPoints() { return timeoutPoints; }
   public void setTimeoutPoints(int v) { this.timeoutPoints = v; }
 
-  public int getBoosterMultiplier() { return boosterMultiplier; }
-  public void setBoosterMultiplier(int v) { this.boosterMultiplier = v; }
-
-  public int getBoosterDurationMinutes() { return boosterDurationMinutes; }
-  public void setBoosterDurationMinutes(int v) { this.boosterDurationMinutes = v; }
-
-  public int getBoosterConsecutiveWrongTrigger() { return boosterConsecutiveWrongTrigger; }
-  public void setBoosterConsecutiveWrongTrigger(int v) { this.boosterConsecutiveWrongTrigger = v; }
-
-  public int getBoosterInactivityHoursTrigger() { return boosterInactivityHoursTrigger; }
-  public void setBoosterInactivityHoursTrigger(int v) { this.boosterInactivityHoursTrigger = v; }
-
-  public double getBoosterBottomPercentTrigger() { return boosterBottomPercentTrigger; }
-  public void setBoosterBottomPercentTrigger(double v) { this.boosterBottomPercentTrigger = v; }
 }

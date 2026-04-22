@@ -26,7 +26,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
-import com.nserve.quiz.service.BoosterService;
 import com.nserve.quiz.service.EconomyConfigService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -43,7 +42,6 @@ public class QuizService {
   private final UserRepository userRepository;
   private final QuizPlayEntitlementRepository playEntitlementRepository;
   private final FeedbackService feedbackService;
-  private final BoosterService boosterService;
   private final EconomyConfigService economyConfigService;
 
   public QuizService(
@@ -53,7 +51,6 @@ public class QuizService {
       UserRepository userRepository,
       QuizPlayEntitlementRepository playEntitlementRepository,
       FeedbackService feedbackService,
-      BoosterService boosterService,
       EconomyConfigService economyConfigService) {
     this.quizRepository = quizRepository;
     this.questionRepository = questionRepository;
@@ -61,7 +58,6 @@ public class QuizService {
     this.userRepository = userRepository;
     this.playEntitlementRepository = playEntitlementRepository;
     this.feedbackService = feedbackService;
-    this.boosterService = boosterService;
     this.economyConfigService = economyConfigService;
   }
 
@@ -188,14 +184,7 @@ public class QuizService {
         .orElseThrow(() -> new IllegalArgumentException("Question not found"));
 
     boolean correct = evaluate(q, req);
-    int basePoints = computePoints(correct, req.timedOut());
-
-    // Apply 2x booster if active
-    boolean boosterActive = boosterService.isBoosterActive(user);
-    int points = (boosterActive && basePoints > 0) ? basePoints * 2 : basePoints;
-
-    // Evaluate booster triggers for next question
-    boolean boosterJustActivated = boosterService.evaluateAndActivate(user, correct, req.timedOut());
+    int points = computePoints(correct, req.timedOut());
 
     Result row = new Result();
     row.setUserId(user.getId());
@@ -216,8 +205,7 @@ public class QuizService {
     User saved = userRepository.findById(user.getId()).orElse(user);
     Integer revealIdx = q.getInputType() == InputType.slider ? null : q.getCorrectAnswerIndex();
     return new SubmitAnswerResponse(
-        correct, req.timedOut(), points, feedbackService.random(correct), saved.getTotalScore(), revealIdx,
-        boosterService.isBoosterActive(saved), boosterJustActivated);
+        correct, req.timedOut(), points, feedbackService.random(correct), saved.getTotalScore(), revealIdx);
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────

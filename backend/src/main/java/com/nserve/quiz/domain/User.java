@@ -68,12 +68,6 @@ public class User {
   /** Lifetime credits spent (e.g. quiz starts). */
   private int totalSpent;
 
-  /** Active score booster expiry — null means no booster. */
-  private java.time.Instant boosterActiveUntil;
-
-  /** Consecutive wrong answers in current session (for booster trigger). */
-  private int consecutiveWrong;
-
   /** 128-d face embedding used for Face ID login (optional). */
   private List<Double> faceEncoding;
 
@@ -272,10 +266,6 @@ public class User {
 
   public int getTotalSpent() { return totalSpent; }
   public void setTotalSpent(int totalSpent) { this.totalSpent = totalSpent; }
-  public java.time.Instant getBoosterActiveUntil() { return boosterActiveUntil; }
-  public void setBoosterActiveUntil(java.time.Instant boosterActiveUntil) { this.boosterActiveUntil = boosterActiveUntil; }
-  public int getConsecutiveWrong() { return consecutiveWrong; }
-  public void setConsecutiveWrong(int consecutiveWrong) { this.consecutiveWrong = consecutiveWrong; }
 
   public List<Double> getFaceEncoding() { return faceEncoding; }
   public void setFaceEncoding(List<Double> faceEncoding) { this.faceEncoding = faceEncoding; }
