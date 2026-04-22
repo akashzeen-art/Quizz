@@ -151,7 +151,6 @@ export function HomeScreen() {
     typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('en-us')
       ? '$'
       : '₹'
-  const credits = user?.credits ?? 0
   const walletRupees = user?.walletRupees ?? 0
   const cashBalance = walletRupees.toFixed(2)
 

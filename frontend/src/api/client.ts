@@ -103,6 +103,9 @@ export function normalizeUserProfile(raw: unknown): UserProfileDto {
     dayScore: Number(r.dayScore ?? 0),
     credits: Number(r.credits ?? 0),
     totalSpent: Number(r.totalSpent ?? 0),
+    walletPaise: Number(r.walletPaise ?? 0),
+    walletRupees: Number(r.walletRupees ?? 0),
+    totalSpentPaise: Number(r.totalSpentPaise ?? 0),
     categories: cats,
     playedDates: played,
     location:
