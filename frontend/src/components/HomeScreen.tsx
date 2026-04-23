@@ -13,7 +13,6 @@ import {
   History,
   Car,
   Laptop,
-  LifeBuoy,
   MapPin,
   Menu,
   Ticket,
@@ -141,6 +140,7 @@ export function HomeScreen() {
   const [addCreditsOpen, setAddCreditsOpen] = useState(false)
   const [termsOpen, setTermsOpen] = useState(false)
   const [showRules, setShowRules] = useState(false)
+  const [rulesFromMenu, setRulesFromMenu] = useState(false)
   const [addCreditsRupees, setAddCreditsRupees] = useState('50')
   const [addCreditsBusy, setAddCreditsBusy] = useState(false)
   const [quizzes, setQuizzes] = useState<QuizDto[] | null>(null)
@@ -294,15 +294,21 @@ export function HomeScreen() {
   }
 
   async function handleRulesConfirm() {
-    try {
-      const updated = await api.confirmRules()
-      setUser(updated)
-      if (user?.id) localStorage.setItem(`rules_confirmed_${user.id}`, '1')
-    } catch {
-      // non-critical — still proceed
+    const fromMenu = rulesFromMenu
+    setRulesFromMenu(false)
+    if (!fromMenu) {
+      try {
+        const updated = await api.confirmRules()
+        setUser(updated)
+        if (user?.id) localStorage.setItem(`rules_confirmed_${user.id}`, '1')
+      } catch {
+        // non-critical — still proceed
+      }
     }
     setShowRules(false)
-    setTimeout(() => window.dispatchEvent(new Event(START_TOUR_EVENT)), 400)
+    if (!fromMenu) {
+      setTimeout(() => window.dispatchEvent(new Event(START_TOUR_EVENT)), 400)
+    }
   }
 
   return (
@@ -946,12 +952,13 @@ export function HomeScreen() {
                     type="button"
                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-800 transition hover:bg-slate-100/90"
                     onClick={() => {
-                      toast.message('Support: help@skillquiz.demo')
                       setMenuOpen(false)
+                      setRulesFromMenu(true)
+                      setShowRules(true)
                     }}
                   >
-                    <LifeBuoy className="h-4 w-4 shrink-0 text-violet-600" />
-                    Support
+                    <HelpCircle className="h-4 w-4 shrink-0 text-violet-600" />
+                    Rules
                   </button>
                   <button
                     type="button"
