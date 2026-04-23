@@ -39,6 +39,7 @@ public class UserMapper {
         u.getAvatarKey(),
         plan,
         status,
+        u.isRulesConfirmed(),
         u.getProfileUpdatedAt());
   }
 }

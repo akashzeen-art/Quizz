@@ -62,4 +62,9 @@ public class UserController {
       @Valid @RequestBody LocationUpdateRequest body) {
     return userService.saveLocation(user, body.location());
   }
+
+  @PostMapping("/confirm-rules")
+  public UserProfileDto confirmRules(@RequestAttribute(CurrentUser.ATTR) User user) {
+    return userService.confirmRules(user);
+  }
 }

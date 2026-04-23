@@ -31,4 +31,5 @@ public record UserProfileDto(
     String avatarKey,
     String planType,
     String planStatus,
+    boolean rulesConfirmed,
     Instant profileUpdatedAt) {}

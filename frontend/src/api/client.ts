@@ -120,6 +120,7 @@ export function normalizeUserProfile(raw: unknown): UserProfileDto {
       ak != null && String(ak).trim() !== '' ? String(ak).trim() : undefined,
     planType: String(r.planType ?? 'FREE'),
     planStatus: String(r.planStatus ?? 'ACTIVE'),
+    rulesConfirmed: Boolean(r.rulesConfirmed ?? false),
     profileUpdatedAt:
       r.profileUpdatedAt != null ? String(r.profileUpdatedAt) : undefined,
   }
@@ -158,6 +159,11 @@ export async function uploadProfilePhoto(file: File) {
   const fd = new FormData()
   fd.append('file', file)
   const { data } = await api.post<unknown>('/user/profile/photo', fd)
+  return normalizeUserProfile(data)
+}
+
+export async function confirmRules() {
+  const { data } = await api.post<unknown>('/user/confirm-rules')
   return normalizeUserProfile(data)
 }
 

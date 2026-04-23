@@ -66,6 +66,7 @@ export interface UserProfileDto {
   avatarKey?: string
   planType: string
   planStatus: string
+  rulesConfirmed: boolean
   profileUpdatedAt?: string
 }
 

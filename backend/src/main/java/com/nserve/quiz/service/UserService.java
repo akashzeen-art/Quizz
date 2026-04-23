@@ -34,6 +34,12 @@ public class UserService {
     return userMapper.toDto(user);
   }
 
+  public UserProfileDto confirmRules(User user) {
+    User u = userRepository.findById(user.getId()).orElse(user);
+    u.setRulesConfirmed(true);
+    return userMapper.toDto(userRepository.save(u));
+  }
+
   public UserProfileDto savePreferences(User user, PreferencesRequest req) {
     LinkedHashSet<String> cats = new LinkedHashSet<>(req.categories());
     if (cats.size() < CategoryRules.MIN_COUNT || cats.size() > CategoryRules.MAX_COUNT) {

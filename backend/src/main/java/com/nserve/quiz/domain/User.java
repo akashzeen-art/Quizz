@@ -74,6 +74,9 @@ public class User {
   /** Admin kill-switch for Face ID login when a face is registered. */
   private boolean faceLoginEnabled = true;
 
+  /** Whether user has confirmed the rules of the game. */
+  private boolean rulesConfirmed = false;
+
   /** BCrypt hash for 4-digit quick login PIN. */
   private String pinHash;
 
@@ -271,6 +274,9 @@ public class User {
   public void setFaceEncoding(List<Double> faceEncoding) { this.faceEncoding = faceEncoding; }
   public boolean isFaceLoginEnabled() { return faceLoginEnabled; }
   public void setFaceLoginEnabled(boolean faceLoginEnabled) { this.faceLoginEnabled = faceLoginEnabled; }
+  public boolean isRulesConfirmed() { return rulesConfirmed; }
+  public void setRulesConfirmed(boolean rulesConfirmed) { this.rulesConfirmed = rulesConfirmed; }
+
   public String getPinHash() { return pinHash; }
   public void setPinHash(String pinHash) { this.pinHash = pinHash; }
   public String getSecurityQuestion() { return securityQuestion; }

@@ -41,6 +41,7 @@ import {
 } from '../lib/quizEvents'
 import { AppBottomNav } from './AppBottomNav'
 import { AppTour } from './AppTour'
+import { RulesModal } from './RulesModal'
 import { START_TOUR_EVENT } from '../tour/homeTourSteps'
 import { LocationPickerSheet } from './LocationPickerSheet'
 import { Skeleton } from './ui/Skeleton'
@@ -139,6 +140,7 @@ export function HomeScreen() {
   const [locationOpen, setLocationOpen] = useState(false)
   const [addCreditsOpen, setAddCreditsOpen] = useState(false)
   const [termsOpen, setTermsOpen] = useState(false)
+  const [showRules, setShowRules] = useState(false)
   const [addCreditsRupees, setAddCreditsRupees] = useState('50')
   const [addCreditsBusy, setAddCreditsBusy] = useState(false)
   const [quizzes, setQuizzes] = useState<QuizDto[] | null>(null)
@@ -229,6 +231,16 @@ export function HomeScreen() {
     return s
   }, [user?.playedDates])
 
+  // Show rules modal on first login (before tour)
+  useEffect(() => {
+    if (!user) return
+    if (user.rulesConfirmed) return
+    const key = `rules_confirmed_${user.id}`
+    if (localStorage.getItem(key)) return
+    const t = setTimeout(() => setShowRules(true), 800)
+    return () => clearTimeout(t)
+  }, [user?.id, user?.rulesConfirmed])
+
   // Refresh scores every time user returns to this screen (tab focus or navigation)
   useEffect(() => {
     const onVisible = () => {
@@ -279,6 +291,18 @@ export function HomeScreen() {
 
   function shiftCalendarMonth(delta: number) {
     setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() + delta, 1))
+  }
+
+  async function handleRulesConfirm() {
+    try {
+      const updated = await api.confirmRules()
+      setUser(updated)
+      if (user?.id) localStorage.setItem(`rules_confirmed_${user.id}`, '1')
+    } catch {
+      // non-critical — still proceed
+    }
+    setShowRules(false)
+    setTimeout(() => window.dispatchEvent(new Event(START_TOUR_EVENT)), 400)
   }
 
   return (
@@ -970,7 +994,9 @@ export function HomeScreen() {
         )}
       </AnimatePresence>
 
-      <AppTour />
+      <AppTour enabled={!showRules} />
+
+      {showRules && <RulesModal onConfirm={handleRulesConfirm} />}
 
       {addCreditsOpen ? (
         <div
