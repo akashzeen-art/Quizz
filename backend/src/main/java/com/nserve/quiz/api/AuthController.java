@@ -2,10 +2,13 @@ package com.nserve.quiz.api;
 
 import com.nserve.quiz.dto.AuthIdentifierRequest;
 import com.nserve.quiz.dto.AuthSignupRequest;
+import com.nserve.quiz.dto.CheckUserRequest;
+import com.nserve.quiz.dto.CheckUserResponse;
 import com.nserve.quiz.dto.ForgotPinVerifyRequest;
 import com.nserve.quiz.dto.ForgotPinVerifyResponse;
 import com.nserve.quiz.dto.GoogleAuthRequest;
 import com.nserve.quiz.dto.LoginRequest;
+import com.nserve.quiz.dto.LoginPinRequest;
 import com.nserve.quiz.dto.OtpVerifyResponse;
 import com.nserve.quiz.dto.ResetPinRequest;
 import com.nserve.quiz.dto.SecurityQuestionRequest;
@@ -38,6 +41,24 @@ public class AuthController {
   public AuthController(AuthService authService, TwilioOtpService twilioOtpService) {
     this.authService = authService;
     this.twilioOtpService = twilioOtpService;
+  }
+
+  @PostMapping("/check-user")
+  public ResponseEntity<?> checkUser(@RequestBody CheckUserRequest req) {
+    try {
+      return ResponseEntity.ok(authService.checkUser(req.identifier()));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
+  }
+
+  @PostMapping("/login/pin")
+  public ResponseEntity<?> loginPin(@RequestBody LoginPinRequest req) {
+    try {
+      return ResponseEntity.ok(authService.loginWithPin(req.identifier(), req.pin()));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    }
   }
 
   @PostMapping("/login")

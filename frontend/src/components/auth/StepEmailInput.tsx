@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import { ArrowRight, ChevronLeft, Mail } from 'lucide-react'
-import type { AuthMode } from '../AuthFlowScreen'
 
 export function StepEmailInput({
-  mode,
   busy,
   onContinue,
   onBack,
 }: {
-  mode: AuthMode
+  mode?: string
   busy: boolean
   onContinue: (email: string) => void
   onBack: () => void
@@ -33,11 +31,9 @@ export function StepEmailInput({
       <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 text-violet-700">
         <Mail className="h-6 w-6" />
       </div>
-      <h1 className="mb-1 text-2xl font-extrabold tracking-tight text-slate-900">
-        {mode === 'signin' ? 'Sign in with Email' : 'Your Email'}
-      </h1>
+      <h1 className="mb-1 text-2xl font-extrabold tracking-tight text-slate-900">Continue with Email</h1>
       <p className="mb-6 text-sm text-slate-500">
-        {mode === 'signin' ? 'Enter your email to sign in instantly.' : 'We\'ll use this to create your account.'}
+        Enter your email — we'll sign you in or create your account automatically.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -69,7 +65,7 @@ export function StepEmailInput({
           disabled={busy || !email.trim()}
           className="btn-app-primary py-4 text-base disabled:opacity-50"
         >
-          {busy ? 'Please wait…' : 'Continue'}
+          {busy ? 'Checking…' : 'Continue'}
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
             <ArrowRight className="h-4 w-4" />
           </span>
@@ -77,7 +73,7 @@ export function StepEmailInput({
       </form>
 
       <p className="mt-4 text-center text-xs text-slate-400">
-        No password needed — instant access ✨
+        Existing user? We'll take you straight to PIN login ✨
       </p>
     </div>
   )

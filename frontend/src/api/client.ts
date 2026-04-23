@@ -161,6 +161,16 @@ export async function uploadProfilePhoto(file: File) {
   return normalizeUserProfile(data)
 }
 
+export async function checkUser(identifier: string): Promise<{ exists: boolean; method: string }> {
+  const { data } = await api.post<{ exists: boolean; method: string }>('/auth/check-user', { identifier })
+  return data
+}
+
+export async function loginWithPin(identifier: string, pin: string) {
+  const { data } = await api.post<{ token: string; user: unknown }>('/auth/login/pin', { identifier, pin })
+  return { token: data.token, user: normalizeUserProfile(data.user) }
+}
+
 export async function loginEmail(identifier: string) {
   const { data } = await api.post<{ token: string; user: unknown }>(
     '/auth/login',

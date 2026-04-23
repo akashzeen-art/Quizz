@@ -115,11 +115,13 @@ export function AuthFlowScreen() {
   async function onEmailContinue(emailVal: string) {
     setBusy(true)
     try {
-      if (mode === 'signin') {
-        const res = await api.loginEmailExisting(emailVal)
-        loginWithToken(res.token, res.user)
-        navigate(shouldForceCategoryOnboarding(res.user) ? '/categories' : '/home', { replace: true })
+      const check = await api.checkUser(emailVal)
+      if (check.exists) {
+        // existing user → go to PIN login
+        setOtpPhone(emailVal) // reuse otpPhone as identifier
+        goTo('pin-login')
       } else {
+        // new user → signup flow
         setEmail(emailVal)
         goTo('pin-security')
       }
@@ -134,6 +136,12 @@ export function AuthFlowScreen() {
   async function onPhoneSendOtp(phone: string) {
     setBusy(true)
     try {
+      const check = await api.checkUser(phone)
+      if (check.exists) {
+        setOtpPhone(phone)
+        goTo('pin-login')
+        return
+      }
       await api.sendOtp(phone)
       setOtpPhone(phone)
       goTo('otp')
@@ -238,7 +246,7 @@ export function AuthFlowScreen() {
   async function onPinLogin(p: string) {
     setBusy(true)
     try {
-      const res = await api.verifyPin(otpPhone, p)
+      const res = await api.loginWithPin(otpPhone, p)
       loginWithToken(res.token, res.user)
       navigate(shouldForceCategoryOnboarding(res.user) ? '/categories' : '/home', { replace: true })
     } catch (err) {
@@ -328,8 +336,8 @@ export function AuthFlowScreen() {
                 busy={busy}
                 inviteRef={inviteRef}
                 onModeChange={setMode}
-                onSelectEmail={() => { setMethod('email'); goTo('email-input') }}
-                onSelectPhone={() => { setMethod('phone'); goTo('phone-input') }}
+                onSelectEmail={() => { setMethod('email'); setMode('signup'); goTo('email-input') }}
+                onSelectPhone={() => { setMethod('phone'); setMode('signup'); goTo('phone-input') }}
                 onGoogleSuccess={onGoogleSuccess}
                 onBack={() => navigate(-1)}
               />
@@ -387,7 +395,7 @@ export function AuthFlowScreen() {
 
             {step === 'pin-login' && (
               <StepPinLogin
-                phone={otpPhone}
+                identifier={otpPhone}
                 busy={busy}
                 onLogin={onPinLogin}
                 onForgotPin={() => {

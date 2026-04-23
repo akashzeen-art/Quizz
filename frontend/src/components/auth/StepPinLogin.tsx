@@ -2,13 +2,13 @@ import { useState, useRef, useEffect } from 'react'
 import { ArrowRight, ChevronLeft, Lock } from 'lucide-react'
 
 export function StepPinLogin({
-  phone,
+  identifier,
   busy,
   onLogin,
   onForgotPin,
   onBack,
 }: {
-  phone: string
+  identifier: string
   busy: boolean
   onLogin: (pin: string) => void
   onForgotPin: () => void
@@ -19,6 +19,9 @@ export function StepPinLogin({
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
+
+  const isEmail = identifier.includes('@')
+  const label = isEmail ? identifier : identifier
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -36,9 +39,9 @@ export function StepPinLogin({
       <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 text-violet-700">
         <Lock className="h-6 w-6" />
       </div>
-      <h1 className="mb-1 text-2xl font-extrabold tracking-tight text-slate-900">Enter PIN</h1>
-      <p className="mb-2 text-sm text-slate-500">Quick login for</p>
-      <p className="mb-6 text-sm font-bold text-slate-800">{phone}</p>
+      <h1 className="mb-1 text-2xl font-extrabold tracking-tight text-slate-900">Welcome back!</h1>
+      <p className="mb-1 text-sm text-slate-500">Enter your PIN to sign in</p>
+      <p className="mb-6 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-800 truncate">{label}</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>

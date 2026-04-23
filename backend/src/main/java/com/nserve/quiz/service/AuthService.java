@@ -6,6 +6,7 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.nserve.quiz.domain.User;
 import com.nserve.quiz.dto.AuthResponse;
+import com.nserve.quiz.dto.CheckUserResponse;
 import com.nserve.quiz.dto.UserProfileDto;
 import com.nserve.quiz.repo.UserRepository;
 import java.io.IOException;
@@ -29,6 +30,9 @@ public class AuthService {
   private final WalletService walletService;
   private final String googleClientId;
   private final Map<String, RecoveryToken> pinRecoveryTokens = new ConcurrentHashMap<>();
+  private final Map<String, PinAttempt> pinAttempts = new ConcurrentHashMap<>();
+  private static final int MAX_PIN_ATTEMPTS = 5;
+  private static final long PIN_LOCKOUT_MS = 15 * 60_000L;
   private static final long PIN_RECOVERY_TTL_MS = 5 * 60_000L;
   private static final Set<String> ALLOWED_SECURITY_QUESTIONS =
       Set.of(
@@ -47,6 +51,62 @@ public class AuthService {
     this.userMapper = userMapper;
     this.walletService = walletService;
     this.googleClientId = googleClientId != null ? googleClientId.trim() : "";
+  }
+
+  /** Check if a user exists by email or phone. Auto-detects which. */
+  public CheckUserResponse checkUser(String identifier) {
+    if (identifier == null || identifier.isBlank())
+      throw new IllegalArgumentException("Identifier is required");
+    String id = identifier.trim();
+    if (id.contains("@")) {
+      String email = id.toLowerCase();
+      boolean exists = userRepository.findByEmail(email).isPresent();
+      return new CheckUserResponse(exists, "email");
+    }
+    String phone = normalizePhone(id);
+    boolean exists = userRepository.findByPhone(phone).isPresent();
+    return new CheckUserResponse(exists, "phone");
+  }
+
+  /** Login with PIN — works for both email and phone. */
+  public AuthResponse loginWithPin(String identifier, String pin) {
+    if (identifier == null || identifier.isBlank())
+      throw new IllegalArgumentException("Identifier is required");
+    validatePin(pin);
+    String id = identifier.trim();
+    User user;
+    if (id.contains("@")) {
+      user = userRepository.findByEmail(id.toLowerCase())
+          .orElseThrow(() -> new IllegalArgumentException("No account found. Please sign up."));
+    } else {
+      String phone = normalizePhone(id);
+      user = userRepository.findByPhone(phone)
+          .orElseThrow(() -> new IllegalArgumentException("No account found. Please sign up."));
+    }
+    // Check lockout
+    String lockKey = user.getId();
+    PinAttempt attempt = pinAttempts.get(lockKey);
+    if (attempt != null && attempt.lockedUntil() > System.currentTimeMillis()) {
+      long secsLeft = (attempt.lockedUntil() - System.currentTimeMillis()) / 1000;
+      throw new IllegalArgumentException("Too many wrong PINs. Try again in " + secsLeft + "s.");
+    }
+    if (user.getPinHash() == null || user.getPinHash().isBlank()) {
+      throw new IllegalArgumentException("PIN not set. Please complete your profile setup.");
+    }
+    if (!BCrypt.checkpw(pin.trim(), user.getPinHash())) {
+      int count = attempt == null ? 1 : attempt.count() + 1;
+      long lockedUntil = count >= MAX_PIN_ATTEMPTS ? System.currentTimeMillis() + PIN_LOCKOUT_MS : 0;
+      pinAttempts.put(lockKey, new PinAttempt(count, lockedUntil));
+      int remaining = MAX_PIN_ATTEMPTS - count;
+      if (remaining <= 0) throw new IllegalArgumentException("Too many wrong PINs. Account locked for 15 minutes.");
+      throw new IllegalArgumentException("Wrong PIN. " + remaining + " attempt" + (remaining == 1 ? "" : "s") + " remaining.");
+    }
+    pinAttempts.remove(lockKey);
+    if (user.getAuthToken() == null || user.getAuthToken().isBlank()) {
+      user.setAuthToken(newToken());
+      user = userRepository.save(user);
+    }
+    return authResponse(user);
   }
 
   /** Sign in or register by phone (digits only, country code + national number, no OTP). */
@@ -376,9 +436,8 @@ public class AuthService {
       String securityQuestion,
       String securityAnswer,
       java.util.List<Double> faceEncoding) {
-    Optional<User> existing = userRepository.findByEmail(email);
-    if (existing.isPresent()) {
-      return ensureSession(existing.get());
+    if (userRepository.findByEmail(email).isPresent()) {
+      throw new IllegalArgumentException("Account already exists with this email. Please login.");
     }
     User u = new User();
     u.setEmail(email);
@@ -409,9 +468,8 @@ public class AuthService {
       String securityQuestion,
       String securityAnswer,
       java.util.List<Double> faceEncoding) {
-    Optional<User> existing = userRepository.findByPhone(phone);
-    if (existing.isPresent()) {
-      return ensureSession(existing.get());
+    if (userRepository.findByPhone(phone).isPresent()) {
+      throw new IllegalArgumentException("Account already exists with this phone. Please login.");
     }
     User u = new User();
     u.setPhone(phone);
@@ -588,6 +646,7 @@ public class AuthService {
   }
 
   private record RecoveryToken(String userId, long expiresAtMs) {}
+  private record PinAttempt(int count, long lockedUntil) {}
 
   private static String capitalize(String s) {
     if (s == null || s.isEmpty()) {
