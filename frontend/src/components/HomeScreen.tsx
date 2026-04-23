@@ -144,7 +144,7 @@ export function HomeScreen() {
   const [addCreditsRupees, setAddCreditsRupees] = useState('50')
   const [addCreditsBusy, setAddCreditsBusy] = useState(false)
   const [quizzes, setQuizzes] = useState<QuizDto[] | null>(null)
-  const [eventSection, setEventSection] = useState<'active' | 'upcoming' | 'past'>('upcoming')
+  const [eventSection, setEventSection] = useState<'active' | 'upcoming' | 'past'>('active')
   const [leaderboard, setLeaderboard] = useState<
     Awaited<ReturnType<typeof api.fetchLeaderboard>> | null
   >(null)
@@ -467,7 +467,7 @@ export function HomeScreen() {
         </section>
 
         <section className="mb-3">
-          <div className="flex items-center gap-2 rounded-full bg-slate-100/90 p-1.5">
+          <div className="grid grid-cols-3 rounded-full bg-slate-100/90 p-1.5">
             {[
               { id: 'active', label: 'Active Quiz' },
               { id: 'upcoming', label: 'Upcoming Quiz' },
@@ -479,7 +479,7 @@ export function HomeScreen() {
                   key={s.id}
                   type="button"
                   onClick={() => setEventSection(s.id as 'active' | 'upcoming' | 'past')}
-                  className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                  className={`w-full rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
                     active
                       ? 'bg-white text-violet-700 shadow-sm ring-1 ring-violet-200'
                       : 'text-slate-500 hover:text-slate-700'
@@ -1106,7 +1106,7 @@ export function HomeScreen() {
               </button>
             </div>
             <div className="overflow-y-auto px-5 py-4 text-xs leading-relaxed text-slate-600 space-y-3">
-              <p className="text-[11px] text-slate-400">Effective Date: March 15, 2026 · Last Updated: March 15, 2026<br />Operator: nServeTechnology FZ LLC</p>
+              <p className="text-[11px] text-slate-400">Effective Date: March 15, 2026 · Last Updated: March 15, 2026<br />Company: nServeTechnology FZ LLC</p>
               <p>These Terms of Playing govern your access to and participation in the quiz contest made available by us. By registering or participating, you agree to be bound by these Terms.</p>
               <p className="font-bold text-slate-800">1. Eligibility</p>
               <p>Participation is open only to individuals who are at least 18 years or older, legally permitted to participate under the laws of their country, provide accurate registration information, and comply with these Terms.</p>

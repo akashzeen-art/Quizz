@@ -79,7 +79,7 @@ export function RulesModal({ onConfirm }: { onConfirm: () => void }) {
           ))}
 
           <div className="rounded-2xl border border-violet-200 bg-violet-50 p-3.5 text-xs leading-relaxed text-violet-800">
-            <span className="font-bold">Operator:</span> nServeTechnology FZ LLC · Ras Al Khaimah, UAE<br />
+            <span className="font-bold">Address:</span> nServeTechnology FZ LLC · Ras Al Khaimah, UAE<br />
             <span className="font-bold">Support:</span> info@nservetechnology.com
           </div>
         </div>
