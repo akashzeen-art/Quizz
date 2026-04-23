@@ -311,11 +311,11 @@ export function AuthFlowScreen() {
   }
 
   return (
-    <div className="app-screen relative min-h-[100dvh] overflow-hidden bg-gradient-to-br from-slate-50 to-violet-50/30 safe-pt-header">
+    <div className="app-screen relative min-h-[100dvh] overflow-hidden bg-gradient-to-br from-slate-50 to-violet-50/30 safe-pt-header flex items-center justify-center">
       <div className="pointer-events-none absolute -right-24 -top-32 h-72 w-72 rounded-full bg-violet-400/20 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute -left-20 bottom-0 h-56 w-56 rounded-full bg-indigo-400/15 blur-3xl" aria-hidden />
 
-      <div className="relative mx-auto max-w-md w-full px-5 pb-10 pt-4 flex flex-col justify-center min-h-[100dvh]">
+      <div className="relative w-full max-w-md px-5 py-10">
         {showProgress && (
           <AuthProgressBar current={stepNum} total={totalSteps - 1} onBack={goBack} />
         )}
