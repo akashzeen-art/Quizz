@@ -138,6 +138,7 @@ export function HomeScreen() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [locationOpen, setLocationOpen] = useState(false)
   const [addCreditsOpen, setAddCreditsOpen] = useState(false)
+  const [termsOpen, setTermsOpen] = useState(false)
   const [addCreditsRupees, setAddCreditsRupees] = useState('50')
   const [addCreditsBusy, setAddCreditsBusy] = useState(false)
   const [quizzes, setQuizzes] = useState<QuizDto[] | null>(null)
@@ -932,12 +933,12 @@ export function HomeScreen() {
                     type="button"
                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-800 transition hover:bg-slate-100/90"
                     onClick={() => {
-                      toast.message('FAQ: Tap a live quiz to begin.')
                       setMenuOpen(false)
+                      setTermsOpen(true)
                     }}
                   >
                     <HelpCircle className="h-4 w-4 shrink-0 text-violet-600" />
-                    FAQ
+                    Terms
                   </button>
                   <button
                     type="button"
@@ -1055,6 +1056,65 @@ export function HomeScreen() {
           </div>
         </div>
       ) : null}
+
+      {termsOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          role="dialog"
+          aria-modal
+          aria-labelledby="terms-title"
+        >
+          <button type="button" className="absolute inset-0 cursor-default" aria-label="Close" onClick={() => setTermsOpen(false)} />
+          <div className="relative z-10 flex w-full max-w-lg flex-col rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200/80" style={{ maxHeight: '85dvh' }}>
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <h2 id="terms-title" className="text-base font-extrabold text-slate-900">Terms of Playing</h2>
+              <button type="button" onClick={() => setTermsOpen(false)} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto px-5 py-4 text-xs leading-relaxed text-slate-600 space-y-3">
+              <p className="text-[11px] text-slate-400">Effective Date: March 15, 2026 · Last Updated: March 15, 2026<br />Operator: nServeTechnology FZ LLC</p>
+              <p>These Terms of Playing govern your access to and participation in the quiz contest made available by us. By registering or participating, you agree to be bound by these Terms.</p>
+              <p className="font-bold text-slate-800">1. Eligibility</p>
+              <p>Participation is open only to individuals who are at least 18 years or older, legally permitted to participate under the laws of their country, provide accurate registration information, and comply with these Terms.</p>
+              <p className="font-bold text-slate-800">2. Registration</p>
+              <p>To participate, a user may be required to register by providing name, phone number, email address, and other relevant information. Each participant is responsible for all activity conducted through their registered account.</p>
+              <p className="font-bold text-slate-800">3. Contest Format</p>
+              <p>The Contest may be conducted over a defined period. Questions may be presented in randomized order to ensure a fair and engaging experience.</p>
+              <p className="font-bold text-slate-800">4. Scoring</p>
+              <p>Correct answer: +10 points · Incorrect answer: -1 point · No answer / time expired: 0 points. Each question has a time limit of 15 seconds.</p>
+              <p className="font-bold text-slate-800">5. Leaderboard and Winner Selection</p>
+              <p>Winners will be determined based on the highest score achieved during the contest period. Ties may be resolved using a fair tie-breaking method. Our decision shall be final and binding.</p>
+              <p className="font-bold text-slate-800">6. Prizes</p>
+              <p>Prizes will be awarded as described in the applicable contest announcement. Prize type may include digital rewards, cash-equivalent rewards, or physical prizes such as devices or merchandise.</p>
+              <p className="font-bold text-slate-800">7. Prize Delivery</p>
+              <p>Prize delivery will be made to the winner using the contact details provided during registration. We are not responsible for delivery failures caused by incorrect contact details or third-party carrier delays.</p>
+              <p className="font-bold text-slate-800">8. Winner Verification</p>
+              <p>Before prize delivery, we may require a winner to confirm identity, verify contact details, provide address, and complete any required compliance forms. Failure to complete verification may result in forfeiture.</p>
+              <p className="font-bold text-slate-800">9. Contest Communication</p>
+              <p>We may communicate with participants via SMS, phone call, email, in-app notification, or other official channels. Participants are responsible for checking their registered contact methods.</p>
+              <p className="font-bold text-slate-800">10. Grievance and Support</p>
+              <p>If you have a complaint or dispute, contact our support team through the official contact details published on the platform.</p>
+              <p className="font-bold text-slate-800">11. Data Collected</p>
+              <p>We may collect phone number, email address, name, quiz responses, participation history, transaction logs, winner verification records, and communication records.</p>
+              <p className="font-bold text-slate-800">12. Data Use</p>
+              <p>We use participant data only for operating the Contest, determining eligibility and winners, delivering prizes, handling support, preventing fraud, and complying with legal obligations.</p>
+              <p className="font-bold text-slate-800">13. Data Sharing</p>
+              <p>We do not sell participant data. We may share limited information only with service providers who help us operate the Contest, subject to confidentiality and applicable law.</p>
+              <p className="font-bold text-slate-800">14. Prohibited Conduct</p>
+              <p>Participants must not use multiple identities, attempt to manipulate scores or rankings, interfere with platform operations, provide false information, or violate any applicable law.</p>
+              <p className="font-bold text-slate-800">15. Changes, Suspension, and Termination</p>
+              <p>We may modify, suspend, or terminate the Contest or these Terms at any time, subject to applicable law and reasonable notice where required.</p>
+              <p className="font-bold text-slate-800">16. Limitation of Liability</p>
+              <p>To the fullest extent permitted by law, we are not liable for any indirect, incidental, or consequential losses arising from participation in the Contest.</p>
+              <p className="font-bold text-slate-800">17. Governing Rules</p>
+              <p>The Contest may be subject to local rules and regulatory obligations depending on the country or region. Where local law conflicts with these Terms, local law will prevail.</p>
+              <p className="font-bold text-slate-800">18. Contact</p>
+              <p>Support Email: info@nservetechnology.com<br />Registered Address: Ras Al Kaminah, UAE</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <LocationPickerSheet
         open={locationOpen}
