@@ -4,7 +4,7 @@ import { dicebearUrl } from '../../constants/avatars'
 export type TabId = 'total' | 'daily' | 'weekly' | 'monthly' | 'points' | 'quiz'
 
 export const GLOBAL_SORTS: { id: TabId; label: string; hint: string }[] = [
-  { id: 'total',   label: 'All-time',   hint: 'Career score' },
+  { id: 'total',   label: 'Winnings',   hint: 'Wallet + Points' },
   { id: 'daily',   label: 'Today',      hint: 'Resets midnight' },
   { id: 'weekly',  label: 'This week',  hint: 'Resets each week' },
   { id: 'monthly', label: 'This month', hint: 'Monthly climb' },

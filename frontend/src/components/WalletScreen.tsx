@@ -24,7 +24,7 @@ export function WalletScreen() {
     api.fetchWalletTransactions()
       .then(setTransactions)
       .catch(() => setTransactions([]))
-  }, [user?.credits])
+  }, [user?.walletPaise])
 
   async function handleAdd() {
     const amt = Math.floor(Number(rupees) || 0)
@@ -33,7 +33,7 @@ export function WalletScreen() {
     try {
       await api.addWalletCredits({ amountRupees: amt })
       await refreshProfile()
-      toast.success(`Added ${amt * 2} credits`)
+      toast.success(`Added ₹${amt} to wallet`)
       setAddOpen(false)
       setRupees('50')
     } catch (e) {
@@ -52,13 +52,12 @@ export function WalletScreen() {
     } catch { toast.error('Could not load quizzes') }
   }
 
-  const credits = user?.credits ?? 0
-  const totalSpent = user?.totalSpent ?? 0
+  const walletRupees = user?.walletRupees ?? 0
+  const totalSpentPaise = user?.totalSpentPaise ?? 0
   const currencySymbol =
     typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('en-us')
       ? '$'
       : '₹'
-  const cashBalance = Math.floor(credits / 2)
 
   return (
     <div className="app-screen min-h-[100dvh] pb-bottom-nav">
@@ -86,27 +85,23 @@ export function WalletScreen() {
           animate={{ opacity: 1, y: 0 }}
           className="relative mt-5 rounded-3xl border border-white/20 bg-white/10 p-5 backdrop-blur-sm"
         >
-          <p className="text-xs font-semibold uppercase tracking-widest text-white/60">Cash Balance</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-white/60">Wallet Balance</p>
           <div className="mt-1 flex items-end gap-2">
             <Coins className="mb-1 h-7 w-7 text-amber-300" />
             <p className="tabular-nums leading-none">
               <span className="text-5xl font-extrabold text-white">
-                {currencySymbol}
-                {cashBalance.toLocaleString()}
-              </span>{' '}
-              <span className="text-2xl font-semibold text-white/75">
-                ({credits.toLocaleString()} credits)
+                {currencySymbol}{walletRupees.toFixed(2)}
               </span>
             </p>
           </div>
-          <p className="mt-2 text-xs text-white/50">Lifetime spent: {totalSpent.toLocaleString()} credits</p>
+          <p className="mt-2 text-xs text-white/50">Lifetime spent: {currencySymbol}{(totalSpentPaise / 100).toFixed(2)}</p>
 
           <div className="mt-4 flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-2 text-xs text-white/70">
-            <span>₹1 = 2 credits</span>
+            <span>Quiz entry: ₹10</span>
             <span className="mx-1 opacity-40">·</span>
-            <span>₹50 = 100 credits</span>
+            <span>Correct: +₹1</span>
             <span className="mx-1 opacity-40">·</span>
-            <span>Quiz costs 10 credits</span>
+            <span>Wrong: -₹0.10</span>
           </div>
 
           <button
@@ -115,7 +110,7 @@ export function WalletScreen() {
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3 text-sm font-bold text-violet-700 shadow-lg transition hover:bg-violet-50 active:scale-[0.98]"
           >
             <Plus className="h-4 w-4" />
-            Add Credits
+            Add Money
           </button>
         </motion.div>
       </header>
@@ -189,8 +184,8 @@ export function WalletScreen() {
               initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
               transition={{ type: 'spring', damping: 24, stiffness: 300 }}
             >
-              <h3 className="text-lg font-extrabold text-slate-900">Add Credits</h3>
-              <p className="mt-1 text-xs text-slate-500">₹1 = 2 credits · Simulated top-up</p>
+              <h3 className="text-lg font-extrabold text-slate-900">Add Money</h3>
+              <p className="mt-1 text-xs text-slate-500">₹1 added directly to your wallet</p>
 
               {/* Quick amounts */}
               <div className="mt-4 grid grid-cols-4 gap-2">
@@ -221,7 +216,7 @@ export function WalletScreen() {
                 disabled={busy}
               />
               <p className="mt-1.5 text-sm font-semibold text-violet-700">
-                = {Math.max(0, Math.floor(Number(rupees) || 0) * 2)} credits
+                ₹{Math.max(0, Math.floor(Number(rupees) || 0))} will be added to wallet
               </p>
 
               <div className="mt-4 flex gap-2">

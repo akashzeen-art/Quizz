@@ -128,7 +128,7 @@ export function QuizPlayScreen() {
         selectedIndex: timedOut ? undefined : answerIndex,
       })
       // clamp session score at 0 — never show negative total
-      setSessionScore((s) => Math.max(0, s + pts))
+      setSessionScore((s) => s + pts)
       if (res.correct) setCorrectCount((c) => c + 1)
       else if (!timedOut) setWrongCount((c) => c + 1)
 
