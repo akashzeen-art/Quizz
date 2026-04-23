@@ -386,8 +386,7 @@ export function AuthFlowScreen() {
   async function onCreateAccount() {
     const trimmedName = name.trim()
     if (!trimmedName) return toast.error('Enter your full name')
-    const normalizedTag = gameTag.trim().replace(/\s+/g, '').replace(/[^A-Za-z0-9_]/g, '')
-    if (normalizedTag.length < 4) return toast.error('Game tag must be at least 4 characters')
+    const normalizedTag = trimmedName.replace(/\s+/g, '').replace(/[^A-Za-z0-9_]/g, '').slice(0, 20) + Math.floor(1000 + Math.random() * 9000)
 
     setBusy(true)
     try {
@@ -772,7 +771,7 @@ export function AuthFlowScreen() {
 
             <section className="space-y-2">
               <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">Game tag (unique)</label>
-              <input value={gameTag} onChange={(e) => setGameTag(e.target.value)} className="input-app text-sm" placeholder="e.g. Akash_9921" maxLength={24} />
+              <input value={gameTag} onChange={(e) => setGameTag(e.target.value)} className="input-app text-sm" placeholder="" maxLength={24} />
               <p className="text-[11px] text-slate-500">Use letters, numbers, or underscore. Min 4 chars.</p>
             </section>
 
