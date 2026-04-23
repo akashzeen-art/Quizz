@@ -304,11 +304,11 @@ public class QuizService {
     User u = userRepository.findById(user.getId()).orElseThrow();
     String today = LocalDate.now(ZoneOffset.UTC).toString();
     if (!today.equals(u.getDayScoreDate())) { u.setDayScore(0); u.setDayScoreDate(today); }
-    u.setDayScore(Math.max(0, u.getDayScore() + points));
-    u.setTotalScore(Math.max(0, u.getTotalScore() + points));
-    u.setWeeklyScore(Math.max(0, u.getWeeklyScore() + points));
-    u.setMonthlyScore(Math.max(0, u.getMonthlyScore() + points));
-    u.setPoints(Math.max(0, u.getPoints() + points));
+    u.setDayScore(u.getDayScore() + points);
+    u.setTotalScore(u.getTotalScore() + points);
+    u.setWeeklyScore(u.getWeeklyScore() + points);
+    u.setMonthlyScore(u.getMonthlyScore() + points);
+    u.setPoints(u.getPoints() + points);
     // -₹0.10 from wallet on wrong answer
     int wrongPaise = economyConfigService.get().getWrongAnswerPaise();
     u.setWalletPaise(Math.max(0, u.getWalletPaise() - wrongPaise));
