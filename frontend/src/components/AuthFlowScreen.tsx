@@ -315,7 +315,7 @@ export function AuthFlowScreen() {
       <div className="pointer-events-none absolute -right-24 -top-32 h-72 w-72 rounded-full bg-violet-400/20 blur-3xl" aria-hidden />
       <div className="pointer-events-none absolute -left-20 bottom-0 h-56 w-56 rounded-full bg-indigo-400/15 blur-3xl" aria-hidden />
 
-      <div className="relative mx-auto max-w-md px-5 pb-10 pt-4">
+      <div className="relative mx-auto max-w-md w-full px-5 pb-10 pt-4 flex flex-col justify-center min-h-[100dvh]">
         {showProgress && (
           <AuthProgressBar current={stepNum} total={totalSteps - 1} onBack={goBack} />
         )}
