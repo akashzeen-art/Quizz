@@ -122,7 +122,7 @@ export function LeaderboardScreen() {
               <div className="text-left">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-white/60">Your result</p>
                 <p className="text-lg font-extrabold tabular-nums text-white">
-                  Winnings: {fromQuiz.score ?? 0} pts · {fromQuiz.correct ?? 0}/{fromQuiz.total ?? 0} correct
+                  Winnings: {fromQuiz.score ?? 0} · {fromQuiz.correct ?? 0}/{fromQuiz.total ?? 0} correct
                 </p>
                 {myRank && myRank > 0 && (
                   <p className="mt-0.5 flex items-center gap-1 text-xs font-bold text-amber-300">
